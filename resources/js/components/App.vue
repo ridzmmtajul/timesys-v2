@@ -1,32 +1,32 @@
 <template>
   <div class="app-container">
-    <!-- Sidebar -->
     <aside class="sidebar">
       <div class="brand">
-        <!-- <i class="fas fa-fingerprint"></i> -->
         <img :src="logoUrl" alt="Logo" class="brand-logo" />
         <div>
           <span>TimeSync</span>
           <small>Bio & Attendance System</small>
         </div>
       </div>
+
       <nav class="nav">
-        <div 
-          v-for="item in navItems" 
+        <div
+          v-for="item in navItems"
           :key="item.name"
-          class="nav-item" 
+          class="nav-item"
           :class="{ active: currentPage === item.name }"
           @click="currentPage = item.name"
         >
-          <i :class="item.icon"></i> {{ item.label }}
+          <i :class="item.icon"></i>
+          <span>{{ item.label }}</span>
         </div>
       </nav>
+
       <div class="sidebar-footer">
         <i class="fas fa-circle"></i> system · v2.1
       </div>
     </aside>
 
-    <!-- Main Content -->
     <main class="main">
       <BiometricList @data-pulled="handleDataPulled" />
     </main>
@@ -38,9 +38,7 @@ import BiometricList from './biometric/Index.vue';
 
 export default {
   name: 'App',
-  components: {
-    BiometricList
-  },
+  components: { BiometricList },
   data() {
     return {
       logoUrl: '/images/logo.png',
@@ -71,44 +69,38 @@ export default {
 .app-container {
   width: 100vw;
   height: 100vh;
-  background: white;
   display: flex;
   overflow: hidden;
-  margin: 0;
-  border-radius: 0;
-  box-shadow: none;
+  background:
+    radial-gradient(circle at top left, rgba(31, 191, 184, 0.16), transparent 28%),
+    radial-gradient(circle at top right, rgba(63, 109, 199, 0.2), transparent 32%),
+    linear-gradient(135deg, #071029 0%, #091737 45%, #0c1730 100%);
 }
 
 .sidebar {
-  width: 280px;
-  background: #031163;
-  color: rgba(255,255,255,0.8);
-  padding: 32px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 48px;
+  width: 292px;
   flex-shrink: 0;
   height: 100vh;
   position: sticky;
   top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 42px;
+  padding: 28px 18px;
+  color: rgba(255, 255, 255, 0.8);
+  background: linear-gradient(180deg, rgba(8, 18, 44, 0.96) 0%, rgba(6, 14, 33, 0.98) 100%);
+  border-right: 1px solid rgba(108, 143, 214, 0.15);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding-left: 6px;
-}
-
-.brand i {
-  font-size: 28px;
-  color: #1fbfb8;
-  background: rgba(31, 191, 184, 0.12);
-  padding: 10px;
-  border-radius: 18px;
+  gap: 12px;
+  padding: 10px 8px 6px;
 }
 
 .brand span {
+  display: block;
   font-weight: 700;
   font-size: 22px;
   letter-spacing: -0.3px;
@@ -116,11 +108,16 @@ export default {
 }
 
 .brand small {
-  font-weight: 400;
-  font-size: 14px;
-  color: #a0b9e6;
   display: block;
   margin-top: 2px;
+  font-size: 14px;
+  color: #8aa0d7;
+}
+
+.brand-logo {
+  width: 35px;
+  height: 35px;
+  object-fit: contain;
 }
 
 .nav {
@@ -134,11 +131,11 @@ export default {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 14px 18px;
+  padding: 15px 16px;
   border-radius: 18px;
   font-weight: 500;
   font-size: 16px;
-  color: #c8d9f5;
+  color: #a9bce7;
   transition: all 0.2s;
   cursor: pointer;
 }
@@ -146,13 +143,13 @@ export default {
 .nav-item i {
   width: 24px;
   font-size: 18px;
-  color: #6d89c7;
+  color: #728cc4;
 }
 
 .nav-item.active {
-  background: rgba(31, 191, 184, 0.18);
+  background: linear-gradient(90deg, rgba(31, 191, 184, 0.22), rgba(31, 191, 184, 0.08));
   color: white;
-  box-shadow: 0 0 0 1px rgba(31, 191, 184, 0.3);
+  box-shadow: 0 0 0 1px rgba(31, 191, 184, 0.3), 0 10px 24px rgba(31, 191, 184, 0.12);
 }
 
 .nav-item.active i {
@@ -160,22 +157,18 @@ export default {
 }
 
 .nav-item:not(.active):hover {
-  background: rgba(255,255,255,0.04);
+  background: rgba(255, 255, 255, 0.04);
   color: white;
-}
-
-.nav-item:not(.active):hover i {
-  color: #a6c0f0;
 }
 
 .sidebar-footer {
   margin-top: auto;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   padding-top: 24px;
   display: flex;
   align-items: center;
   gap: 14px;
-  color: #a0b9e6;
+  color: #8aa0d7;
   font-size: 14px;
 }
 
@@ -186,23 +179,20 @@ export default {
 
 .main {
   flex: 1;
-  background: #f8fafd;
-  padding: 32px 40px;
-  overflow-y: auto;
   height: 100vh;
+  overflow-y: auto;
+  padding: 18px 22px 22px;
+  background:
+    radial-gradient(circle at top center, rgba(66, 113, 216, 0.14), transparent 35%),
+    linear-gradient(180deg, rgba(12, 21, 43, 0.72), rgba(8, 16, 34, 0.88));
 }
 
 .main::-webkit-scrollbar {
   width: 6px;
 }
+
 .main::-webkit-scrollbar-thumb {
   background: #b9d2e8;
   border-radius: 12px;
-}
-
-.brand-logo {
-  width: 35px;
-  height: 35px;
-  object-fit: contain;
 }
 </style>

@@ -1,8 +1,30 @@
 <template>
-  <div>
-    <div class="page-header">
-      <h2><i class="fas fa-list-ul"></i> Biometric devices</h2>
-      <div class="header-actions">
+  <section class="biometric-dashboard">
+    <header class="hero-bar">
+      <div class="hero-title">
+        <div class="hero-kicker">
+          <i class="fas fa-bars-staggered"></i>
+          <span>Biometric devices</span>
+        </div>
+        <h2>Biometric devices</h2>
+      </div>
+
+      <div class="hero-actions">
+        <div class="kpi-strip">
+          <div class="kpi-card">
+            <span class="kpi-label">Total Devices</span>
+            <strong>{{ devices.length }}</strong>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Total Users</span>
+            <strong>{{ totalUsers }}</strong>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Active Logs Today</span>
+            <strong>{{ totalLogs }}</strong>
+          </div>
+        </div>
+
         <div class="view-toggle">
           <button class="view-btn" :class="{ active: viewMode === 'card' }" @click="viewMode = 'card'" title="Card view">
             <i class="fas fa-th-large"></i>
@@ -11,203 +33,223 @@
             <i class="fas fa-list"></i>
           </button>
         </div>
+
         <button class="btn-primary" @click="toggleForm">
-          <i class="fas fa-plus-circle"></i> Add device
+          <i class="fas fa-plus"></i>
+          Add device
         </button>
       </div>
-    </div>
+    </header>
 
-    <div v-if="showForm" class="add-form">
-      <div class="form-group">
-        <label><i class="fas fa-tag"></i> Device name</label>
-        <input v-model.trim="newDevice.device_name" placeholder="Enter device name" />
+    <div class="surface">
+      <div v-if="showForm" class="add-form">
+        <div class="form-group">
+          <label>Device name</label>
+          <input v-model.trim="newDevice.device_name" placeholder="Enter device name" />
+        </div>
+        <div class="form-group">
+          <label>IP address</label>
+          <input v-model.trim="newDevice.ip_address" placeholder="Enter IP address" @keydown.enter="addDevice" />
+        </div>
+        <button class="btn-add" :disabled="saving" @click="addDevice">
+          <i class="fas fa-plug"></i>
+          {{ saving ? 'Connecting...' : 'Connect' }}
+        </button>
+        <button class="cancel-add" @click="cancelForm">Cancel</button>
       </div>
-      <div class="form-group">
-        <label><i class="fas fa-network-wired"></i> IP address</label>
-        <input v-model.trim="newDevice.ip_address" placeholder="Enter IP address" @keydown.enter="addDevice"/>
-        <!-- <small class="form-hint">Enter the biometric device IP address.</small> -->
+
+      <div v-if="loading" class="loading-state">
+        <i class="fas fa-circle-notch fa-spin"></i>
+        <p>Loading biometric devices...</p>
       </div>
-      <button class="btn-add" :disabled="saving" @click="addDevice">
-        <i class="fas fa-save"></i> {{ saving ? 'Connecting...' : 'Connect' }}
-      </button>
-      <button class="cancel-add" @click="cancelForm">Cancel</button>
-    </div>
 
-    <div v-if="loading" class="empty-state">
-      <i class="fas fa-circle-notch fa-spin"></i>
-      <p style="font-weight: 500; margin-top: 8px;">Loading biometric devices...</p>
-    </div>
-
-    <div v-else-if="viewMode === 'card'" class="device-grid">
-      <div v-for="device in devices" :key="device.id || device.device_name" class="device-card">
-        <div class="device-icon">
-          <i class="fas fa-fingerprint"></i>
-        </div>
-        <div class="device-name">{{ device.device_name }}</div>
-        <div class="device-meta">
-          <span><i class="fas fa-network-wired"></i> {{ device.ip_address }}</span>
-          <span><i class="fas fa-box"></i> {{ device.product_name || 'N/A' }}</span>
-          <span><i class="fas fa-hashtag"></i> {{ device.serial_number || 'N/A' }}</span>
-        </div>
-        <div class="device-status">
-          <span class="status-badge" :class="statusClass(device.status)">
-            <i class="fas fa-circle" style="font-size: 8px; margin-right: 6px;"></i>
-            {{ device.status }}
-          </span>
-          <span style="color: #1978a5; font-size: 13px;">
-            <i class="fas fa-database"></i> {{ device.log_count || 0 }} logs
-          </span>
-        </div>
-        <div class="device-stats">
-          <span><strong>{{ device.user_count || 0 }}</strong> users</span>
-          <span><strong>{{ device.admin_count || 0 }}</strong> admins</span>
-        </div>
-
-        <div class="device-card-actions" @click.stop>
-          <button
-            class="action-menu-btn"
-            type="button"
-            title="Actions"
-            aria-label="Actions"
-            @click="toggleDeviceMenu(device.id)"
-          >
-            <i class="fas fa-ellipsis-v"></i>
-          </button>
-
-          <div v-if="openDeviceMenuId === device.id" class="device-action-menu device-action-menu--card" @click.stop>
-            <button class="device-action-item" type="button" @click="handleDeviceAction('connect', device)">
-              <i class="fas fa-arrow-left"></i>
-              <span>Connect</span>
-            </button>
-            <button class="device-action-item" type="button" @click="handleDeviceAction('disconnect', device)">
-              <i class="fas fa-plug"></i>
-              <span>Disconnect</span>
-            </button>
-            <button class="device-action-item" type="button" @click="handleDeviceAction('download-log', device)">
-              <i class="fas fa-download"></i>
-              <span>Download log</span>
-            </button>
-            <button class="device-action-item" type="button" @click="handleDeviceAction('update-device', device)">
-              <i class="fas fa-pen"></i>
-              <span>Update device</span>
-            </button>
-            <button class="device-action-item" type="button" @click="handleDeviceAction('delete-device', device)">
-              <i class="fas fa-trash-alt"></i>
-              <span>Delete device</span>
-            </button>
-            <button class="device-action-item" type="button" @click="handleDeviceAction('sync-time', device)">
-              <i class="fas fa-clock"></i>
-              <span>Sync time</span>
-            </button>
-            <button class="device-action-item" type="button" @click="handleDeviceAction('refresh', device)">
-              <i class="fas fa-sync-alt"></i>
-              <span>Refresh</span>
-            </button>
+      <div v-else-if="viewMode === 'card'" class="device-grid">
+        <article v-for="device in devices" :key="device.id || device.device_name" class="device-card">
+          <div class="card-top">
+            <div class="device-icon">
+              <i class="fas fa-fingerprint"></i>
+            </div>
+            <span class="card-period">Last 7 days</span>
           </div>
+
+          <div class="device-name">{{ device.device_name }}</div>
+
+          <div class="device-meta">
+            <span><i class="fas fa-network-wired"></i> {{ device.ip_address }}</span>
+            <span><i class="fas fa-box"></i> {{ device.product_name || 'N/A' }}</span>
+            <span><i class="fas fa-hashtag"></i> {{ device.serial_number || 'N/A' }}</span>
+          </div>
+
+          <div class="device-status">
+            <span class="status-badge" :class="statusClass(device.status)">
+              <i class="fas fa-circle"></i>
+              {{ device.status }}
+            </span>
+            <span class="log-count">
+              <i class="fas fa-database"></i>
+              {{ device.log_count || 0 }} logs
+            </span>
+          </div>
+
+          <div class="device-stats">
+            <span><strong>{{ device.user_count || 0 }}</strong> users</span>
+            <span><strong>{{ device.admin_count || 0 }}</strong> admins</span>
+          </div>
+
+          <div class="device-footer">
+            <div class="avatar-stack">
+              <span></span><span></span><span></span>
+            </div>
+
+            <div class="device-action-wrap" @click.stop>
+              <button
+                class="action-menu-btn"
+                type="button"
+                title="Actions"
+                aria-label="Actions"
+                @click="toggleDeviceMenu(device.id)"
+              >
+                <i class="fas fa-ellipsis-v"></i>
+              </button>
+
+              <div v-if="openDeviceMenuId === device.id" class="device-action-menu device-action-menu--card" @click.stop>
+                <button class="device-action-item" type="button" @click="handleDeviceAction('connect', device)">
+                  <i class="fas fa-arrow-left"></i>
+                  <span>Connect</span>
+                </button>
+                <button class="device-action-item" type="button" @click="handleDeviceAction('disconnect', device)">
+                  <i class="fas fa-plug"></i>
+                  <span>Disconnect</span>
+                </button>
+                <button class="device-action-item" type="button" @click="handleDeviceAction('download-log', device)">
+                  <i class="fas fa-download"></i>
+                  <span>Download log</span>
+                </button>
+                <button class="device-action-item" type="button" @click="handleDeviceAction('update-device', device)">
+                  <i class="fas fa-pen"></i>
+                  <span>Update device</span>
+                </button>
+                <button class="device-action-item" type="button" @click="handleDeviceAction('delete-device', device)">
+                  <i class="fas fa-trash-alt"></i>
+                  <span>Delete device</span>
+                </button>
+                <button class="device-action-item" type="button" @click="handleDeviceAction('sync-time', device)">
+                  <i class="fas fa-clock"></i>
+                  <span>Sync time</span>
+                </button>
+                <button class="device-action-item" type="button" @click="handleDeviceAction('refresh', device)">
+                  <i class="fas fa-sync-alt"></i>
+                  <span>Refresh</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <div v-if="!devices.length" class="empty-state">
+          <i class="fas fa-microchip"></i>
+          <p>No biometric devices added</p>
+          <span>Click "Add device" to get started</span>
         </div>
       </div>
 
-      <div v-if="!devices.length" class="empty-state">
-        <i class="fas fa-microchip"></i>
-        <p style="font-weight: 500; margin-top: 8px;">No biometric devices added</p>
-        <p style="font-size: 14px; opacity: 0.7;">Click "Add device" to get started</p>
-      </div>
-    </div>
-
-    <div v-else class="table-container">
-      <table class="device-table">
-        <thead>
-          <tr>
-            <th>Device Name</th>
-            <th>Status</th>
-            <th>IP Address</th>
-            <th>Product Name</th>
-            <th>User Count</th>
-            <th>Admin Count</th>
-            <th>Log Count</th>
-            <th>Serial Number</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="device in devices" :key="device.id || device.device_name">
-            <td>
-              <div class="table-device-info">
-                <i class="fas fa-fingerprint" style="color: #05716c;"></i>
-                <span class="device-name-table">{{ device.device_name }}</span>
-              </div>
-            </td>
-            <td>
-              <span class="status-badge" :class="statusClass(device.status)">
-                {{ device.status }}
-              </span>
-            </td>
-            <td>{{ device.ip_address }}</td>
-            <td>{{ device.product_name || 'N/A' }}</td>
-            <td>{{ device.user_count || 0 }}</td>
-            <td>{{ device.admin_count || 0 }}</td>
-            <td>{{ device.log_count || 0 }}</td>
-            <td>{{ device.serial_number || 0 }}</td>
-            <td>
-              <div class="device-action-wrap" @click.stop>
-                <button
-                  class="action-menu-btn"
-                  type="button"
-                  title="Actions"
-                  aria-label="Actions"
-                  @click="toggleDeviceMenu(device.id)"
-                >
-                  <i class="fas fa-ellipsis-v"></i>
-                </button>
-
-                <div v-if="openDeviceMenuId === device.id" class="device-action-menu" @click.stop>
-                  <button class="device-action-item" type="button" @click="handleDeviceAction('connect', device)">
-                    <i class="fas fa-arrow-left"></i>
-                    <span>Connect</span>
-                  </button>
-                  <button class="device-action-item" type="button" @click="handleDeviceAction('disconnect', device)">
-                    <i class="fas fa-plug"></i>
-                    <span>Disconnect</span>
-                  </button>
-                  <button class="device-action-item" type="button" @click="handleDeviceAction('download-log', device)">
-                    <i class="fas fa-download"></i>
-                    <span>Download log</span>
-                  </button>
-                  <button class="device-action-item" type="button" @click="handleDeviceAction('update-device', device)">
-                    <i class="fas fa-pen"></i>
-                    <span>Update device</span>
-                  </button>
-                  <button class="device-action-item" type="button" @click="handleDeviceAction('delete-device', device)">
-                    <i class="fas fa-trash-alt"></i>
-                    <span>Delete device</span>
-                  </button>
-                  <button class="device-action-item" type="button" @click="handleDeviceAction('sync-time', device)">
-                    <i class="fas fa-clock"></i>
-                    <span>Sync time</span>
-                  </button>
-                  <button class="device-action-item" type="button" @click="handleDeviceAction('refresh', device)">
-                    <i class="fas fa-sync-alt"></i>
-                    <span>Refresh</span>
-                  </button>
+      <div v-else class="table-container">
+        <table class="device-table">
+          <thead>
+            <tr>
+              <th>Device Name</th>
+              <th>Status</th>
+              <th>IP Address</th>
+              <th>Product Name</th>
+              <th>User Count</th>
+              <th>Admin Count</th>
+              <th>Log Count</th>
+              <th>Serial Number</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="device in devices" :key="device.id || device.device_name">
+              <td>
+                <div class="table-device-info">
+                  <i class="fas fa-fingerprint"></i>
+                  <span class="device-name-table">{{ device.device_name }}</span>
                 </div>
-              </div>
-            </td>
-          </tr>
-          <tr v-if="!devices.length">
-            <td colspan="11" class="empty-table">
-              <i class="fas fa-microchip"></i>
-              <p>No biometric devices added</p>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+              </td>
+              <td>
+                <span class="status-badge" :class="statusClass(device.status)">
+                  {{ device.status }}
+                </span>
+              </td>
+              <td>{{ device.ip_address }}</td>
+              <td>{{ device.product_name || 'N/A' }}</td>
+              <td>{{ device.user_count || 0 }}</td>
+              <td>{{ device.admin_count || 0 }}</td>
+              <td>{{ device.log_count || 0 }}</td>
+              <td>{{ device.serial_number || 'N/A' }}</td>
+              <td>
+                <div class="device-action-wrap" @click.stop>
+                  <button class="action-menu-btn" type="button" title="Actions" aria-label="Actions" @click="toggleDeviceMenu(device.id)">
+                    <i class="fas fa-ellipsis-v"></i>
+                  </button>
 
-    <div class="footer-info">
-      <span><i class="fas fa-arrow-right" style="color: #1fbfb8;"></i> Live data pull from biometric devices</span>
-      <span><i class="fas fa-check-circle" style="color: #05716c;"></i> {{ devices.length }} device(s) connected</span>
+                  <div v-if="openDeviceMenuId === device.id" class="device-action-menu" @click.stop>
+                    <button class="device-action-item" type="button" @click="handleDeviceAction('connect', device)">
+                      <i class="fas fa-arrow-left"></i>
+                      <span>Connect</span>
+                    </button>
+                    <button class="device-action-item" type="button" @click="handleDeviceAction('disconnect', device)">
+                      <i class="fas fa-plug"></i>
+                      <span>Disconnect</span>
+                    </button>
+                    <button class="device-action-item" type="button" @click="handleDeviceAction('download-log', device)">
+                      <i class="fas fa-download"></i>
+                      <span>Download log</span>
+                    </button>
+                    <button class="device-action-item" type="button" @click="handleDeviceAction('update-device', device)">
+                      <i class="fas fa-pen"></i>
+                      <span>Update device</span>
+                    </button>
+                    <button class="device-action-item" type="button" @click="handleDeviceAction('delete-device', device)">
+                      <i class="fas fa-trash-alt"></i>
+                      <span>Delete device</span>
+                    </button>
+                    <button class="device-action-item" type="button" @click="handleDeviceAction('sync-time', device)">
+                      <i class="fas fa-clock"></i>
+                      <span>Sync time</span>
+                    </button>
+                    <button class="device-action-item" type="button" @click="handleDeviceAction('refresh', device)">
+                      <i class="fas fa-sync-alt"></i>
+                      <span>Refresh</span>
+                    </button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!devices.length">
+              <td colspan="9" class="empty-table">
+                <i class="fas fa-microchip"></i>
+                <p>No biometric devices added</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="recent-logs">
+        <div class="recent-logs__title">Recent Sync Logs</div>
+        <div class="recent-avatars">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <i class="fas fa-chevron-up"></i>
+      </div>
+
+      <footer class="footer-info">
+        <span><i class="fas fa-arrow-right"></i> Live data pull from biometric devices</span>
+        <span><i class="fas fa-check-circle"></i> {{ devices.length }} device(s) connected</span>
+      </footer>
     </div>
-  </div>
+  </section>
 </template>
 
 <script>
@@ -228,6 +270,14 @@ export default {
         ip_address: ''
       }
     };
+  },
+  computed: {
+    totalUsers() {
+      return this.devices.reduce((sum, device) => sum + Number(device.user_count || 0), 0);
+    },
+    totalLogs() {
+      return this.devices.reduce((sum, device) => sum + Number(device.log_count || 0), 0);
+    }
   },
   mounted() {
     this.fetchDevices();
@@ -461,169 +511,183 @@ export default {
 </script>
 
 <style scoped>
-.page-header {
+.biometric-dashboard {
+  min-height: calc(100vh - 40px);
+  color: #eef6ff;
+}
+
+.hero-bar {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.hero-title {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hero-kicker {
+  display: inline-flex;
   align-items: center;
-  margin-bottom: 32px;
+  gap: 10px;
+  color: #c8d6f8;
+  font-size: 14px;
+  opacity: 0.95;
+}
+
+.hero-kicker i {
+  color: #35d0d2;
+}
+
+.hero-title h2 {
+  font-size: 20px;
+  line-height: 1.05;
+  letter-spacing: -0.5px;
+  color: #f3f7ff;
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
-  gap: 16px;
+  justify-content: flex-end;
 }
 
-.page-header h2 {
-  font-size: 26px;
-  font-weight: 700;
-  color: #031163;
-  letter-spacing: -0.3px;
+.kpi-strip {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.page-header h2 i {
-  color: #1fbfb8;
-  font-size: 28px;
+.kpi-card {
+  min-width: 108px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: rgba(24, 35, 70, 0.82);
+  border: 1px solid rgba(126, 153, 210, 0.16);
+  box-shadow: 0 8px 18px rgba(1, 8, 24, 0.16);
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+.kpi-label {
+  display: block;
+  font-size: 11px;
+  color: #99b2df;
+  margin-bottom: 4px;
+}
+
+.kpi-card strong {
+  font-size: 15px;
+  color: #f5fbff;
 }
 
 .view-toggle {
   display: flex;
-  background: white;
-  border-radius: 40px;
   padding: 4px;
-  border: 1px solid #dde7f0;
-  box-shadow: 0 2px 8px rgba(3, 17, 99, 0.04);
+  border-radius: 999px;
+  background: rgba(18, 29, 61, 0.72);
+  border: 1px solid rgba(126, 153, 210, 0.14);
 }
 
 .view-btn {
+  width: 34px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
   background: transparent;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 30px;
+  color: #9bb0da;
   cursor: pointer;
-  color: #1978a5;
-  transition: all 0.2s;
-  font-size: 16px;
-}
-
-.view-btn:hover {
-  background: rgba(31, 191, 184, 0.08);
 }
 
 .view-btn.active {
   background: #1fbfb8;
-  color: #031163;
-  box-shadow: 0 2px 8px rgba(31, 191, 184, 0.3);
+  color: #06162f;
 }
 
 .btn-primary {
-  background: #1fbfb8;
-  border: none;
-  color: #031163;
-  font-weight: 600;
-  padding: 12px 28px;
-  border-radius: 40px;
-  font-size: 15px;
-  display: flex;
+  border: 0;
+  padding: 11px 16px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1fbfb8 0%, #52d3d0 100%);
+  color: #06162f;
+  font-weight: 700;
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 8px 16px -6px rgba(31, 191, 184, 0.35);
-  letter-spacing: 0.2px;
+  box-shadow: 0 16px 30px rgba(31, 191, 184, 0.22);
 }
 
-.btn-primary:hover {
-  background: #1aaba5;
-  transform: scale(1.01);
-  box-shadow: 0 12px 20px -8px rgba(31, 191, 184, 0.45);
+.surface {
+  border-radius: 18px;
+  background: rgba(10, 18, 40, 0.58);
+  border: 1px solid rgba(121, 146, 207, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.02), 0 24px 60px rgba(2, 7, 20, 0.28);
+  padding: 14px;
 }
 
 .add-form {
-  background: white;
-  border-radius: 32px;
-  padding: 28px 32px;
-  margin-bottom: 32px;
-  border: 1px solid rgba(31, 191, 184, 0.2);
-  box-shadow: 0 6px 16px rgba(3, 17, 99, 0.03);
   display: flex;
+  gap: 14px;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 18px 24px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(17, 27, 56, 0.85);
+  border: 1px solid rgba(121, 146, 207, 0.16);
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  flex: 1 0 160px;
+  gap: 8px;
+  min-width: 220px;
+  flex: 1;
 }
 
 .form-group label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #1978a5;
-  letter-spacing: 0.2px;
-  text-transform: uppercase;
-}
-
-.form-hint {
-  color: #1978a5;
   font-size: 12px;
-}
-
-.connection-chip {
-  padding: 12px 16px;
-  border-radius: 20px;
-  background: #f3fbfb;
-  border: 1px solid #d4f3f0;
-  color: #05716c;
-  font-size: 13px;
-  font-weight: 500;
+  color: #97add8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .form-group input {
-  padding: 12px 16px;
-  border-radius: 20px;
-  border: 1px solid #dde7f0;
-  background: #fafcff;
-  font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  transition: 0.15s;
-  color: #031163;
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(121, 146, 207, 0.18);
+  background: rgba(7, 13, 28, 0.7);
+  color: #edf5ff;
+  padding: 0 14px;
+  outline: none;
 }
 
 .form-group input:focus {
-  outline: none;
-  border-color: #1fbfb8;
-  box-shadow: 0 0 0 3px rgba(31, 191, 184, 0.15);
+  border-color: rgba(31, 191, 184, 0.6);
+  box-shadow: 0 0 0 3px rgba(31, 191, 184, 0.14);
 }
 
-.form-group input[readonly] {
-  background: #eef5fb;
-  cursor: not-allowed;
+.btn-add,
+.cancel-add {
+  height: 44px;
+  border-radius: 14px;
+  border: 0;
+  padding: 0 16px;
+  cursor: pointer;
 }
 
 .btn-add {
   background: #031163;
   color: white;
-  border: none;
-  padding: 12px 32px;
-  border-radius: 40px;
-  font-weight: 600;
-  font-size: 14px;
-  display: flex;
+  font-weight: 700;
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  transition: 0.15s;
-  margin-left: auto;
-  height: 48px;
+  gap: 10px;
 }
 
 .btn-add:disabled {
@@ -631,173 +695,226 @@ export default {
   cursor: wait;
 }
 
-.btn-add:hover {
-  background: #1f2a7a;
-  box-shadow: 0 8px 20px rgba(3, 17, 99, 0.2);
-}
-
-.btn-add i {
-  color: #1fbfb8;
-}
-
 .cancel-add {
   background: transparent;
-  border: none;
-  color: #1978a5;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 0 8px;
-  font-size: 14px;
+  color: #9bb0da;
 }
 
-.cancel-add:hover {
-  color: #031163;
+.loading-state,
+.empty-state {
+  border-radius: 24px;
+  background: rgba(17, 27, 56, 0.6);
+  border: 1px solid rgba(121, 146, 207, 0.14);
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: #9bb0da;
+}
+
+.loading-state i,
+.empty-state i {
+  font-size: 36px;
+  color: #1fbfb8;
+  margin-bottom: 10px;
+}
+
+.loading-state p,
+.empty-state p {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.empty-state span {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
 }
 
 .device-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 24px;
-  margin-top: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
 }
 
 .device-card {
-  background: white;
-  border-radius: 28px;
-  padding: 24px 22px;
-  box-shadow: 0 6px 18px rgba(3, 17, 99, 0.04);
-  border: 1px solid rgba(3, 17, 99, 0.04);
-  transition: all 0.2s;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
   position: relative;
+  min-height: 252px;
+  border-radius: 20px;
+  padding: 16px 15px 14px;
+  background:
+    linear-gradient(180deg, rgba(28, 41, 75, 0.94) 0%, rgba(15, 24, 46, 0.98) 100%);
+  border: 1px solid rgba(121, 146, 207, 0.16);
+  box-shadow: 0 12px 26px rgba(2, 7, 20, 0.24);
 }
 
 .device-card:hover {
-  border-color: #1fbfb8;
-  box-shadow: 0 12px 24px -12px rgba(3, 17, 99, 0.12);
+  border-color: rgba(31, 191, 184, 0.45);
+  box-shadow: 0 18px 38px rgba(2, 7, 20, 0.38);
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .device-icon {
-  background: rgba(31, 191, 184, 0.08);
-  width: 52px;
-  height: 52px;
-  border-radius: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #05716c;
-  font-size: 26px;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: #77dde0;
+  background: rgba(31, 191, 184, 0.15);
+  box-shadow: inset 0 0 0 1px rgba(31, 191, 184, 0.18);
 }
 
-.device-name {
-  font-weight: 700;
-  font-size: 20px;
-  color: #031163;
-  letter-spacing: -0.2px;
-}
-
-.device-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 18px;
-  font-size: 14px;
-  color: #1978a5;
+.card-period {
+  color: #b1c0e4;
+  font-size: 11px;
+  align-self: flex-start;
   margin-top: 4px;
 }
 
+.device-name {
+  margin-top: 14px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  color: #f5fbff;
+}
+
+.device-meta {
+  margin-top: 10px;
+  display: grid;
+  gap: 7px;
+  color: #9bb0da;
+  font-size: 12px;
+}
+
+.device-meta span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .device-meta i {
-  color: #05716c;
-  width: 18px;
-  margin-right: 4px;
+  color: #59d2d7;
+  width: 16px;
 }
 
 .device-status {
-  margin-top: 8px;
+  margin-top: 10px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.device-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 14px;
-  font-size: 13px;
-  color: #1978a5;
-}
-
-.device-stats strong {
-  color: #031163;
-}
-
-.device-card-actions {
-  position: absolute;
-  right: 22px;
-  bottom: 18px;
-  display: inline-block;
 }
 
 .status-badge {
-  background: #e2f0f2;
-  color: #05716c;
-  padding: 6px 14px;
-  border-radius: 40px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
   display: inline-flex;
   align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: rgba(96, 107, 158, 0.22);
+  color: #dfe8ff;
 }
 
 .status-badge.online {
-  background: #d4f3f0;
-  color: #05716c;
+  background: rgba(31, 191, 184, 0.18);
+  color: #75e7d7;
 }
 
 .status-badge.offline {
-  background: #f0eef9;
-  color: #4f4f8b;
+  background: rgba(106, 112, 160, 0.22);
+  color: #bcbfe5;
 }
 
-.action-menu-btn {
-  background: #ffffff;
-  border: 1px solid #ffffff;
-  color: #35507a;
-  width: 46px;
-  height: 46px;
-  border-radius: 11px;
+.status-badge i {
+  font-size: 8px;
+}
+
+.log-count {
+  color: #9bb0da;
+  font-size: 11px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: 0.15s ease;
-  padding: 0;
+  gap: 8px;
 }
 
-.action-menu-btn:hover {
-  background: #dee5ee;
-  color: #20395e;
-  transform: translateY(-1px);
+.device-stats {
+  margin-top: 10px;
+  display: flex;
+  gap: 14px;
+  color: #9bb0da;
+  font-size: 12px;
+}
+
+.device-stats strong {
+  color: #ffffff;
+}
+
+.device-footer {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.avatar-stack {
+  display: flex;
+}
+
+.avatar-stack span {
+  width: 20px;
+  height: 20px;
+  margin-left: -6px;
+  border-radius: 999px;
+  border: 2px solid rgba(15, 24, 46, 1);
+  background: linear-gradient(180deg, #ffb39b, #ff7f63);
+}
+
+.avatar-stack span:nth-child(2) {
+  background: linear-gradient(180deg, #8ed5ff, #4b87ff);
+}
+
+.avatar-stack span:nth-child(3) {
+  background: linear-gradient(180deg, #83f2c6, #2cbf92);
 }
 
 .device-action-wrap {
   position: relative;
-  display: inline-block;
+}
+
+.action-menu-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d6e2ff;
+  cursor: pointer;
 }
 
 .device-action-menu {
   position: absolute;
   right: 0;
   top: calc(100% + 10px);
-  min-width: 228px;
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 12px 28px rgba(18, 28, 45, 0.22);
+  min-width: 220px;
   padding: 8px 0;
+  border-radius: 14px;
+  background: rgba(11, 18, 39, 0.98);
+  border: 1px solid rgba(121, 146, 207, 0.16);
+  box-shadow: 0 22px 40px rgba(0, 0, 0, 0.35);
   z-index: 20;
 }
 
@@ -810,151 +927,178 @@ export default {
   width: 100%;
   border: 0;
   background: transparent;
-  padding: 13px 18px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  font: inherit;
-  color: #2b3553;
-  text-align: left;
+  gap: 14px;
+  color: #e5eeff;
   cursor: pointer;
+  text-align: left;
 }
 
 .device-action-item i {
-  color: #6b7588;
-  font-size: 16px;
-  width: 18px;
-  flex: 0 0 18px;
-  text-align: center;
-}
-
-.device-action-item span {
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.2;
+  width: 16px;
+  color: #8ea3d4;
 }
 
 .device-action-item:hover {
-  background: #f6f8fb;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .table-container {
-  background: white;
-  border-radius: 28px;
   overflow: auto;
-  box-shadow: 0 6px 18px rgba(3, 17, 99, 0.04);
-  border: 1px solid rgba(3, 17, 99, 0.04);
-  margin-top: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(121, 146, 207, 0.16);
 }
 
 .device-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  background: rgba(11, 18, 39, 0.96);
 }
 
 .device-table thead {
-  background: #f8fafd;
-  border-bottom: 1px solid #e6edf6;
+  background: rgba(16, 24, 50, 0.98);
+}
+
+.device-table th,
+.device-table td {
+  padding: 13px 15px;
+  border-bottom: 1px solid rgba(121, 146, 207, 0.12);
 }
 
 .device-table th {
-  text-align: left;
-  padding: 16px 20px;
-  font-weight: 600;
-  color: #1978a5;
-  text-transform: uppercase;
+  color: #9bb0da;
   font-size: 12px;
-  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-align: left;
 }
 
 .device-table td {
-  padding: 16px 20px;
-  border-bottom: 1px solid #f0f4f9;
-  color: #031163;
+  color: #edf5ff;
 }
 
 .device-table tbody tr:hover {
-  background: #f8fafd;
-}
-
-.device-table tbody tr:last-child td {
-  border-bottom: none;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .table-device-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+}
+
+.table-device-info i {
+  color: #59d2d7;
 }
 
 .device-name-table {
   font-weight: 600;
-  color: #031163;
 }
 
 .empty-table {
   text-align: center;
   padding: 60px 20px !important;
-  color: #1978a5;
+  color: #9bb0da;
 }
 
 .empty-table i {
-  font-size: 44px;
+  font-size: 34px;
   color: #1fbfb8;
-  opacity: 0.5;
   display: block;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
-.empty-state {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 60px 20px;
-  color: #1978a5;
-  background: white;
-  border-radius: 40px;
-  border: 1px dashed #b2d4e6;
+.recent-logs {
+  margin-top: 14px;
+  height: 42px;
+  border-radius: 16px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(180deg, rgba(22, 31, 58, 0.9), rgba(14, 21, 41, 0.98));
+  border: 1px solid rgba(121, 146, 207, 0.14);
+  color: #eaf3ff;
 }
 
-.empty-state i {
-  font-size: 44px;
-  color: #1fbfb8;
-  opacity: 0.5;
-  margin-bottom: 16px;
+.recent-logs__title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.recent-avatars {
+  display: flex;
+  margin-left: auto;
+}
+
+.recent-avatars span {
+  width: 20px;
+  height: 20px;
+  margin-left: -6px;
+  border-radius: 999px;
+  border: 2px solid rgba(14, 21, 41, 1);
+  background: linear-gradient(180deg, #ffb39b, #ff7f63);
+}
+
+.recent-avatars span:nth-child(2) { background: linear-gradient(180deg, #7fd5ff, #3d88ff); }
+.recent-avatars span:nth-child(3) { background: linear-gradient(180deg, #86f1c8, #2dbf92); }
+.recent-avatars span:nth-child(4) { background: linear-gradient(180deg, #ffd48b, #f5a33b); }
+.recent-avatars span:nth-child(5) { background: linear-gradient(180deg, #d1a4ff, #8a63ff); }
+
+.recent-logs > i {
+  color: #aabce3;
+  font-size: 12px;
 }
 
 .footer-info {
-  margin-top: 32px;
-  font-size: 13px;
-  color: #1978a5;
+  margin-top: 10px;
+  padding-top: 0;
+  border-top: 0;
   display: flex;
-  gap: 20px;
-  border-top: 1px solid #e6edf6;
-  padding-top: 20px;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: #9bb0da;
+  font-size: 13px;
+}
+
+.footer-info i {
+  color: #1fbfb8;
+  margin-right: 6px;
+}
+
+@media (max-width: 1024px) {
+  .hero-bar {
+    flex-direction: column;
+  }
+
+  .hero-actions {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .header-actions {
-    flex-wrap: wrap;
-  }
-
   .device-grid {
     grid-template-columns: 1fr;
   }
 
-  .device-table {
-    font-size: 12px;
+  .surface {
+    padding: 12px;
   }
 
-  .device-table th,
-  .device-table td {
-    padding: 12px 14px;
+  .kpi-strip {
+    width: 100%;
+  }
+
+  .kpi-card {
+    flex: 1 1 140px;
+  }
+
+  .hero-title h2 {
+    font-size: 24px;
   }
 }
 </style>
