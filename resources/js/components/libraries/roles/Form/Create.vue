@@ -72,45 +72,45 @@ const save = async () => {
         max-width="440px"
         persistent
     >
-        <div class="role-modal">
+        <div class="lib-modal">
             <!-- Header -->
-            <div class="role-modal__header">
-                <div class="role-modal__header-left">
-                    <div class="role-modal__icon">
+            <div class="lib-modal__header">
+                <div class="lib-modal__header-left">
+                    <div class="lib-modal__icon">
                         <v-icon
                             :icon="props.role?.id ? 'mdi-shield-edit' : 'mdi-shield-plus'"
                             size="18"
                         />
                     </div>
                     <div>
-                        <p class="role-modal__eyebrow">Role Management</p>
-                        <h6 class="role-modal__title">{{ dialogTitle }}</h6>
+                        <p class="lib-modal__eyebrow">Role Management</p>
+                        <h6 class="lib-modal__title">{{ dialogTitle }}</h6>
                     </div>
                 </div>
-                <button class="role-modal__close" @click="close()">
+                <button class="lib-modal__close" @click="close()">
                     <v-icon icon="mdi-close" size="16" />
                 </button>
             </div>
 
             <!-- Body -->
-            <div class="role-modal__body">
-                <div class="role-modal__field">
-                    <label class="role-modal__label">
+            <div class="lib-modal__body">
+                <div class="lib-modal__field">
+                    <label class="lib-modal__label">
                         Role Name
-                        <span class="role-modal__required">*</span>
+                        <span class="lib-modal__required">*</span>
                     </label>
-                    <div class="role-modal__input-wrap" :class="{ 'is-error': errors['name'] }">
-                        <v-icon icon="mdi-account-tie" size="16" class="role-modal__input-icon" />
+                    <div class="lib-modal__input-wrap" :class="{ 'is-error': errors['name'] }">
+                        <v-icon icon="mdi-account-tie" size="16" class="lib-modal__input-icon" />
                         <input
                             v-model="form.name"
                             type="text"
                             placeholder="e.g. Administrator"
-                            class="role-modal__input"
+                            class="lib-modal__input"
                             @keyup.enter="save()"
                             autofocus
                         />
                     </div>
-                    <p v-if="errors['name']" class="role-modal__error">
+                    <p v-if="errors['name']" class="lib-modal__error">
                         <v-icon icon="mdi-alert-circle-outline" size="12" />
                         {{ errors['name'][0] }}
                     </p>
@@ -118,12 +118,12 @@ const save = async () => {
             </div>
 
             <!-- Footer -->
-            <div class="role-modal__footer">
-                <button class="role-modal__btn role-modal__btn--cancel" :disabled="is_loading" @click="close()">
+            <div class="lib-modal__footer">
+                <button class="lib-modal__btn lib-modal__btn--cancel" :disabled="is_loading" @click="close()">
                     Cancel
                 </button>
                 <button
-                    class="role-modal__btn role-modal__btn--save"
+                    class="lib-modal__btn lib-modal__btn--save"
                     :disabled="!form.name?.trim() || is_loading"
                     @click="save()"
                 >
@@ -131,7 +131,7 @@ const save = async () => {
                         v-if="is_loading"
                         icon="mdi-loading"
                         size="14"
-                        class="role-modal__spinner"
+                        class="lib-modal__spinner"
                     />
                     <v-icon
                         v-else
@@ -144,233 +144,3 @@ const save = async () => {
         </div>
     </v-dialog>
 </template>
-
-<style scoped>
-.role-modal {
-    border-radius: 16px;
-    overflow: hidden;
-    font-family: inherit;
-    background: linear-gradient(160deg, #0e1c3a 0%, #0a1228 100%);
-    border: 1px solid rgba(108, 143, 214, 0.18);
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(31, 191, 184, 0.08);
-    backdrop-filter: blur(16px);
-}
-
-/* ── Header ── */
-.role-modal__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 18px 20px 16px;
-    border-bottom: 1px solid rgba(31, 191, 184, 0.1);
-    background: rgba(31, 191, 184, 0.04);
-}
-
-.role-modal__header-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.role-modal__icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    background: rgba(31, 191, 184, 0.15);
-    border: 1px solid rgba(31, 191, 184, 0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #1fbfb8;
-    flex-shrink: 0;
-}
-
-.role-modal__eyebrow {
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: #1fbfb8;
-    margin: 0 0 3px;
-    line-height: 1;
-    opacity: 0.8;
-}
-
-.role-modal__title {
-    font-size: 14px;
-    font-weight: 700;
-    margin: 0;
-    line-height: 1.2;
-    color: #e2e8f0;
-}
-
-.role-modal__close {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    border: 1px solid rgba(108, 143, 214, 0.2);
-    background: rgba(255, 255, 255, 0.05);
-    color: #8aa0d7;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s;
-    flex-shrink: 0;
-}
-
-.role-modal__close:hover {
-    background: rgba(248, 113, 113, 0.12);
-    border-color: rgba(248, 113, 113, 0.3);
-    color: #f87171;
-}
-
-/* ── Body ── */
-.role-modal__body {
-    padding: 22px 20px 18px;
-}
-
-.role-modal__field {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-}
-
-.role-modal__label {
-    font-size: 12px;
-    font-weight: 600;
-    color: #a8bcd8;
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    letter-spacing: 0.02em;
-}
-
-.role-modal__required {
-    color: #f87171;
-    font-size: 13px;
-    line-height: 1;
-}
-
-.role-modal__input-wrap {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    border: 1px solid rgba(108, 143, 214, 0.2);
-    border-radius: 10px;
-    padding: 0 13px;
-    background: rgba(255, 255, 255, 0.04);
-    transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
-}
-
-.role-modal__input-wrap:focus-within {
-    border-color: #1fbfb8;
-    box-shadow: 0 0 0 3px rgba(31, 191, 184, 0.12);
-    background: rgba(31, 191, 184, 0.04);
-}
-
-.role-modal__input-wrap.is-error {
-    border-color: #f87171;
-    box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.1);
-}
-
-.role-modal__input-icon {
-    color: #1fbfb8;
-    flex-shrink: 0;
-    opacity: 0.7;
-}
-
-.role-modal__input-wrap:focus-within .role-modal__input-icon {
-    opacity: 1;
-}
-
-.role-modal__input {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    font-size: 13.5px;
-    color: #e2e8f0;
-    padding: 11px 0;
-    font-family: inherit;
-}
-
-.role-modal__input::placeholder {
-    color: rgba(138, 160, 215, 0.4);
-}
-
-.role-modal__error {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11.5px;
-    color: #f87171;
-    margin: 0;
-}
-
-/* ── Footer ── */
-.role-modal__footer {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
-    padding: 14px 20px 18px;
-    border-top: 1px solid rgba(108, 143, 214, 0.1);
-}
-
-.role-modal__btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 18px;
-    border-radius: 9px;
-    border: none;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.18s;
-    font-family: inherit;
-    line-height: 1;
-}
-
-.role-modal__btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-.role-modal__btn--cancel {
-    background: rgba(255, 255, 255, 0.06);
-    color: #8aa0d7;
-    border: 1px solid rgba(108, 143, 214, 0.2);
-}
-
-.role-modal__btn--cancel:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
-    color: #e2e8f0;
-    border-color: rgba(108, 143, 214, 0.4);
-}
-
-.role-modal__btn--save {
-    background: linear-gradient(135deg, #1fbfb8 0%, #05716c 100%);
-    color: #fff;
-    box-shadow: 0 2px 10px rgba(31, 191, 184, 0.35);
-}
-
-.role-modal__btn--save:hover:not(:disabled) {
-    box-shadow: 0 4px 18px rgba(31, 191, 184, 0.5);
-    transform: translateY(-1px);
-}
-
-.role-modal__btn--save:active:not(:disabled) {
-    transform: translateY(0);
-    box-shadow: 0 1px 6px rgba(31, 191, 184, 0.3);
-}
-
-.role-modal__spinner {
-    animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-</style>
