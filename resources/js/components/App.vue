@@ -1,12 +1,17 @@
 <script setup>
+import { computed } from 'vue';
+import { useRoute } from 'vue-router';
 import Sidebar from './Sidebar.vue';
+
+const route = useRoute();
+const isAuthPage = computed(() => route.path === '/login' || route.path === '/set-password');
 </script>
 
 <template>
   <div class="app-container">
-    <Sidebar />
+    <Sidebar v-if="!isAuthPage" />
 
-    <main class="main">
+    <main class="main" :class="{ 'main--auth': isAuthPage }">
       <router-view />
     </main>
   </div>
@@ -38,6 +43,11 @@ import Sidebar from './Sidebar.vue';
   background:
     radial-gradient(circle at top center, rgba(66, 113, 216, 0.14), transparent 35%),
     linear-gradient(180deg, rgba(12, 21, 43, 0.72), rgba(8, 16, 34, 0.88));
+}
+
+.main--auth {
+  padding: 0;
+  background: none;
 }
 
 .main::-webkit-scrollbar {

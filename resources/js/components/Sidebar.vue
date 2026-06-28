@@ -1,6 +1,17 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import useAuth from '../composables/auth.js';
+
+const router = useRouter();
+const { logout, getAuthUser } = useAuth();
+
+const authUser = computed(() => getAuthUser());
+
+const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+};
 
 const route = useRoute();
 
@@ -130,7 +141,19 @@ function toggleSettings() {
     </nav>
 
     <div class="sidebar-footer">
-      <i class="mdi mdi-circle"></i> TimeSys · v2.1
+      <div class="sidebar-user" v-if="authUser">
+        <div class="sidebar-user__avatar">{{ authUser.username?.charAt(0).toUpperCase() }}</div>
+        <div class="sidebar-user__info">
+          <span class="sidebar-user__name">{{ authUser.username }}</span>
+          <small class="sidebar-user__role">{{ authUser.role?.name ?? 'User' }}</small>
+        </div>
+        <button class="sidebar-logout" @click="handleLogout" title="Sign out">
+          <i class="mdi mdi-logout"></i>
+        </button>
+      </div>
+      <div v-else class="sidebar-version">
+        <i class="mdi mdi-circle"></i> TimeSys · v2.1
+      </div>
     </div>
   </aside>
 </template>
@@ -317,7 +340,10 @@ function toggleSettings() {
 .sidebar-footer {
   margin-top: 42px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding-top: 24px;
+  padding-top: 20px;
+}
+
+.sidebar-version {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -325,8 +351,68 @@ function toggleSettings() {
   font-size: 14px;
 }
 
-.sidebar-footer i {
+.sidebar-version i {
   font-size: 20px;
   color: #4f72b3;
+}
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-user__avatar {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1fbfb8 0%, #05716c 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+}
+
+.sidebar-user__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-user__name {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user__role {
+  display: block;
+  font-size: 11px;
+  color: #8aa0d7;
+}
+
+.sidebar-logout {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #5a78b0;
+  font-size: 16px;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s, background 0.2s;
+  flex-shrink: 0;
+}
+
+.sidebar-logout:hover {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
 }
 </style>
