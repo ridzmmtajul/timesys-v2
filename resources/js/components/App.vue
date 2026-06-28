@@ -2,10 +2,11 @@
 import BiometricList from './biometric/Index.vue';
 import EmployeeList from './employees/Index.vue';
 import RoleList from './libraries/roles/Index.vue';
+import OfficeList from './libraries/offices/Index.vue';
 
 export default {
   name: 'App',
-  components: { BiometricList, EmployeeList, RoleList },
+  components: { BiometricList, EmployeeList, RoleList, OfficeList },
   data() {
     return {
       logoUrl: '/images/logo.png',
@@ -99,6 +100,7 @@ export default {
       <BiometricList v-if="currentPage === 'biometric-list'" @data-pulled="handleDataPulled" />
       <EmployeeList v-if="currentPage === 'employees'" />
       <RoleList v-if="currentPage === 'settings-role'" />
+      <OfficeList v-if="currentPage === 'settings-office'" />
     </main>
   </div>
 </template>
