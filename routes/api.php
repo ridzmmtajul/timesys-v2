@@ -12,6 +12,10 @@ use App\Http\Controllers\EmploymentTypeController;
 use App\Http\Controllers\TitleController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\PositionController;
+use App\Http\Controllers\PostNumberController;
+use App\Http\Controllers\ScheduleTypeController;
+use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\WorkTimeRuleController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -61,6 +65,27 @@ Route::get('/positions', [PositionController::class, 'index']);
 Route::post('/positions', [PositionController::class, 'store']);
 Route::put('/positions/{id}', [PositionController::class, 'update']);
 Route::delete('/positions/{id}', [PositionController::class, 'destroy']);
+
+Route::get('/post-numbers', [PostNumberController::class, 'index']);
+Route::post('/post-numbers', [PostNumberController::class, 'store']);
+Route::put('/post-numbers/{id}', [PostNumberController::class, 'update']);
+Route::delete('/post-numbers/{id}', [PostNumberController::class, 'destroy']);
+
+Route::get('/schedule-types/options', [ScheduleTypeController::class, 'options']);
+Route::get('/schedule-types', [ScheduleTypeController::class, 'index']);
+Route::post('/schedule-types', [ScheduleTypeController::class, 'store']);
+Route::put('/schedule-types/{id}', [ScheduleTypeController::class, 'update']);
+Route::delete('/schedule-types/{id}', [ScheduleTypeController::class, 'destroy']);
+
+Route::get('/schedules', [ScheduleController::class, 'index']);
+Route::post('/schedules', [ScheduleController::class, 'store']);
+Route::put('/schedules/{id}', [ScheduleController::class, 'update']);
+Route::delete('/schedules/{id}', [ScheduleController::class, 'destroy']);
+
+Route::get('/work-time-rules', [WorkTimeRuleController::class, 'index']);
+Route::post('/work-time-rules', [WorkTimeRuleController::class, 'store']);
+Route::put('/work-time-rules/{id}', [WorkTimeRuleController::class, 'update']);
+Route::delete('/work-time-rules/{id}', [WorkTimeRuleController::class, 'destroy']);
 
 Route::get('/titles', [TitleController::class, 'index']);
 Route::post('/titles', [TitleController::class, 'store']);
