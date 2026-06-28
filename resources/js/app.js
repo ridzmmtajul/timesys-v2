@@ -1,9 +1,20 @@
 import './bootstrap';
 import { createApp } from 'vue';
 import App from './components/App.vue';
+import { createVuetify } from 'vuetify';
+import * as components from 'vuetify/components';
+import * as directives from 'vuetify/directives';
+import 'vuetify/styles';
+import '@mdi/font/css/materialdesignicons.css';
 
-// Import Font Awesome if needed (or use CDN in your layout)
-// import '@fortawesome/fontawesome-free/css/all.css';
+const vuetify = createVuetify({
+    components,
+    directives,
+    theme: {
+        defaultTheme: 'dark',
+    },
+});
 
 const app = createApp(App);
+app.use(vuetify);
 app.mount('#app');

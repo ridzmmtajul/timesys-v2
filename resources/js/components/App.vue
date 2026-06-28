@@ -1,3 +1,47 @@
+<script>
+import BiometricList from './biometric/Index.vue';
+import EmployeeList from './employees/Index.vue';
+import RoleList from './libraries/roles/Index.vue';
+
+export default {
+  name: 'App',
+  components: { BiometricList, EmployeeList, RoleList },
+  data() {
+    return {
+      logoUrl: '/images/logo.png',
+      currentPage: 'biometric-list',
+      settingsOpen: false,
+      navItems: [
+        { name: 'biometric-list', label: 'Biometric list', icon: 'fas fa-microchip' },
+        { name: 'employees', label: 'Employees', icon: 'fas fa-users' },
+      ],
+      settingsItems: [
+        { name: 'settings-role', label: 'Role', icon: 'fas fa-user-tag' },
+        { name: 'settings-office', label: 'Office', icon: 'fas fa-building' },
+        { name: 'settings-employment-type', label: 'Employment Type', icon: 'fas fa-briefcase' },
+      ]
+    };
+  },
+  computed: {
+    isSettingsActive() {
+      return this.currentPage.startsWith('settings-');
+    }
+  },
+  methods: {
+    handleDataPulled(device) {
+      console.log('Data pulled from device:', device);
+    },
+    toggleSettings() {
+      this.settingsOpen = !this.settingsOpen;
+    },
+    navigateToSettings(name) {
+      this.currentPage = name;
+      this.settingsOpen = true;
+    }
+  }
+};
+</script>
+
 <template>
   <div class="app-container">
     <aside class="sidebar">
@@ -20,6 +64,30 @@
           <i :class="item.icon"></i>
           <span>{{ item.label }}</span>
         </div>
+
+        <!-- Settings dropdown -->
+        <div
+          class="nav-item"
+          :class="{ active: isSettingsActive }"
+          @click="toggleSettings"
+        >
+          <i class="fas fa-cog"></i>
+          <span>Settings</span>
+          <i class="fas fa-chevron-down chevron" :class="{ rotated: settingsOpen }"></i>
+        </div>
+
+        <div class="settings-dropdown" :class="{ open: settingsOpen }">
+          <div
+            v-for="item in settingsItems"
+            :key="item.name"
+            class="nav-subitem"
+            :class="{ active: currentPage === item.name }"
+            @click="navigateToSettings(item.name)"
+          >
+            <i :class="item.icon"></i>
+            <span>{{ item.label }}</span>
+          </div>
+        </div>
       </nav>
 
       <div class="sidebar-footer">
@@ -28,36 +96,12 @@
     </aside>
 
     <main class="main">
-      <BiometricList @data-pulled="handleDataPulled" />
+      <BiometricList v-if="currentPage === 'biometric-list'" @data-pulled="handleDataPulled" />
+      <EmployeeList v-if="currentPage === 'employees'" />
+      <RoleList v-if="currentPage === 'settings-role'" />
     </main>
   </div>
 </template>
-
-<script>
-import BiometricList from './biometric/Index.vue';
-
-export default {
-  name: 'App',
-  components: { BiometricList },
-  data() {
-    return {
-      logoUrl: '/images/logo.png',
-      currentPage: 'biometric-list',
-      navItems: [
-        { name: 'biometric-list', label: 'Biometric list', icon: 'fas fa-microchip' },
-        { name: 'analytics', label: 'Analytics', icon: 'fas fa-chart-pie' },
-        { name: 'logs', label: 'Logs', icon: 'fas fa-clock' },
-        { name: 'settings', label: 'Settings', icon: 'fas fa-cog' }
-      ]
-    };
-  },
-  methods: {
-    handleDataPulled(device) {
-      console.log('Data pulled from device:', device);
-    }
-  }
-};
-</script>
 
 <style scoped>
 * {
@@ -146,6 +190,18 @@ export default {
   color: #728cc4;
 }
 
+.nav-item .chevron {
+  margin-left: auto;
+  width: auto;
+  font-size: 13px;
+  color: #728cc4;
+  transition: transform 0.25s ease;
+}
+
+.nav-item .chevron.rotated {
+  transform: rotate(180deg);
+}
+
 .nav-item.active {
   background: linear-gradient(90deg, rgba(31, 191, 184, 0.22), rgba(31, 191, 184, 0.08));
   color: white;
@@ -157,6 +213,53 @@ export default {
 }
 
 .nav-item:not(.active):hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: white;
+}
+
+.settings-dropdown {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.3s ease;
+  margin-top: -4px;
+}
+
+.settings-dropdown.open {
+  max-height: 200px;
+}
+
+.nav-subitem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 16px 11px 28px;
+  border-radius: 14px;
+  font-weight: 500;
+  font-size: 14px;
+  color: #8aa0d7;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nav-subitem i {
+  width: 20px;
+  font-size: 14px;
+  color: #5a78b0;
+}
+
+.nav-subitem.active {
+  background: rgba(31, 191, 184, 0.12);
+  color: #1fbfb8;
+}
+
+.nav-subitem.active i {
+  color: #1fbfb8;
+}
+
+.nav-subitem:not(.active):hover {
   background: rgba(255, 255, 255, 0.04);
   color: white;
 }
