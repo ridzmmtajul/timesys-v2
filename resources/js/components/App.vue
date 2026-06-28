@@ -4,10 +4,11 @@ import EmployeeList from './employees/Index.vue';
 import RoleList from './libraries/roles/Index.vue';
 import OfficeList from './libraries/offices/Index.vue';
 import OfficeDivisionList from './libraries/office-divisions/Index.vue';
+import TitleList from './libraries/titles/Index.vue';
 
 export default {
   name: 'App',
-  components: { BiometricList, EmployeeList, RoleList, OfficeList, OfficeDivisionList },
+  components: { BiometricList, EmployeeList, RoleList, OfficeList, OfficeDivisionList, TitleList },
   data() {
     return {
       logoUrl: '/images/logo.png',
@@ -22,6 +23,7 @@ export default {
         { name: 'settings-office', label: 'Office', icon: 'fas fa-building' },
         { name: 'settings-office-division', label: 'Office Division', icon: 'fas fa-sitemap' },
         { name: 'settings-employment-type', label: 'Employment Type', icon: 'fas fa-briefcase' },
+        { name: 'settings-title', label: 'Title', icon: 'fas fa-id-badge' },
       ]
     };
   },
@@ -104,6 +106,7 @@ export default {
       <RoleList v-if="currentPage === 'settings-role'" />
       <OfficeList v-if="currentPage === 'settings-office'" />
       <OfficeDivisionList v-if="currentPage === 'settings-office-division'" />
+      <TitleList v-if="currentPage === 'settings-title'" />
     </main>
   </div>
 </template>
@@ -233,7 +236,7 @@ export default {
 }
 
 .settings-dropdown.open {
-  max-height: 200px;
+  max-height: 300px;
 }
 
 .nav-subitem {
