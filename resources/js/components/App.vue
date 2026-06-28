@@ -6,10 +6,11 @@ import OfficeList from './libraries/offices/Index.vue';
 import OfficeDivisionList from './libraries/office-divisions/Index.vue';
 import TitleList from './libraries/titles/Index.vue';
 import EmploymentTypeList from './libraries/employment-types/Index.vue';
+import HolidayList from './libraries/holidays/Index.vue';
 
 export default {
   name: 'App',
-  components: { BiometricList, EmployeeList, RoleList, OfficeList, OfficeDivisionList, TitleList, EmploymentTypeList },
+  components: { BiometricList, EmployeeList, RoleList, OfficeList, OfficeDivisionList, TitleList, EmploymentTypeList, HolidayList },
   data() {
     return {
       logoUrl: '/images/logo.png',
@@ -25,6 +26,7 @@ export default {
         { name: 'settings-office-division', label: 'Office Division', icon: 'fas fa-sitemap' },
         { name: 'settings-employment-type', label: 'Employment Type', icon: 'fas fa-briefcase' },
         { name: 'settings-title', label: 'Title', icon: 'fas fa-id-badge' },
+        { name: 'settings-holiday', label: 'Holiday', icon: 'fas fa-calendar-day' },
       ]
     };
   },
@@ -109,6 +111,7 @@ export default {
       <OfficeDivisionList v-if="currentPage === 'settings-office-division'" />
       <TitleList v-if="currentPage === 'settings-title'" />
       <EmploymentTypeList v-if="currentPage === 'settings-employment-type'" />
+      <HolidayList v-if="currentPage === 'settings-holiday'" />
     </main>
   </div>
 </template>
@@ -238,7 +241,7 @@ export default {
 }
 
 .settings-dropdown.open {
-  max-height: 400px;
+  max-height: 450px;
 }
 
 .nav-subitem {

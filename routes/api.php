@@ -10,6 +10,7 @@ use App\Http\Controllers\OfficeController;
 use App\Http\Controllers\OfficeDivisionController;
 use App\Http\Controllers\EmploymentTypeController;
 use App\Http\Controllers\TitleController;
+use App\Http\Controllers\HolidayController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -49,6 +50,11 @@ Route::get('/employment-types', [EmploymentTypeController::class, 'index']);
 Route::post('/employment-types', [EmploymentTypeController::class, 'store']);
 Route::put('/employment-types/{id}', [EmploymentTypeController::class, 'update']);
 Route::delete('/employment-types/{id}', [EmploymentTypeController::class, 'destroy']);
+
+Route::get('/holidays', [HolidayController::class, 'index']);
+Route::post('/holidays', [HolidayController::class, 'store']);
+Route::put('/holidays/{id}', [HolidayController::class, 'update']);
+Route::delete('/holidays/{id}', [HolidayController::class, 'destroy']);
 
 Route::get('/titles', [TitleController::class, 'index']);
 Route::post('/titles', [TitleController::class, 'store']);
