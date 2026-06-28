@@ -35,7 +35,7 @@ class OfficeController extends Controller
             $office->name = ucwords($request->name);
             $office->description = $request->description;
             $office->prefix = $request->prefix ? strtoupper($request->prefix) : null;
-            $office->latest_employee_no = $request->latest_employee_no;
+            $office->latest_employee_no = $request->prefix ? 0 : null;
             $office->save();
 
             return response()->json(['message' => 'Office has been successfully saved.']);

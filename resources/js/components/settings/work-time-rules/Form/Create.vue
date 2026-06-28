@@ -24,6 +24,8 @@ const initialState = {
     offices: [],
 };
 
+const all_offices = ref(true);
+
 const form = reactive({ ...initialState });
 
 onMounted(() => {
@@ -43,6 +45,7 @@ watch(
         form.description = value?.description || null;
         form.time        = value?.time || null;
         form.offices     = value?.offices ? [...value.offices] : [];
+        all_offices.value = !value?.offices || value.offices.length === 0;
     },
     { immediate: true }
 );
@@ -59,6 +62,16 @@ watch(
 const dialogTitle = computed(() => {
     return props.workTimeRule?.id ? "Edit Work Time Rule" : "Create New Work Time Rule";
 });
+
+// Rule dropdown
+const ruleOptions = ['Grace Period', 'Work Time'];
+const rule_dropdown_open = ref(false);
+const rule_dropdown_ref = ref(null);
+
+const selectRule = (option) => {
+    form.rule = option;
+    rule_dropdown_open.value = false;
+};
 
 // Offices multi-select dropdown
 const dropdown_open = ref(false);
@@ -85,6 +98,9 @@ const toggleOffice = (id) => {
 const isOfficeSelected = (id) => form.offices.includes(id);
 
 const handleClickOutside = (e) => {
+    if (rule_dropdown_ref.value && !rule_dropdown_ref.value.contains(e.target)) {
+        rule_dropdown_open.value = false;
+    }
     if (dropdown_ref.value && !dropdown_ref.value.contains(e.target)) {
         dropdown_open.value = false;
     }
@@ -92,6 +108,7 @@ const handleClickOutside = (e) => {
 
 const close = () => {
     Object.assign(form, { ...initialState, offices: [] });
+    all_offices.value = true;
     emit("input", false);
     errors.value = {};
 };
@@ -99,7 +116,7 @@ const close = () => {
 const save = async () => {
     const data = {
         ...form,
-        offices: form.offices.length > 0 ? form.offices : null,
+        offices: all_offices.value ? null : (form.offices.length > 0 ? form.offices : null),
     };
 
     if (props.workTimeRule?.id) {
@@ -140,21 +157,44 @@ const save = async () => {
             <!-- Body -->
             <div class="lib-modal__body">
                 <!-- Rule -->
-                <div class="lib-modal__field">
+                <div class="lib-modal__field" ref="rule_dropdown_ref">
                     <label class="lib-modal__label">
                         Rule
                         <span class="lib-modal__required">*</span>
                     </label>
-                    <div class="lib-modal__input-wrap" :class="{ 'is-error': errors['rule'] }">
+                    <div
+                        class="lib-modal__input-wrap"
+                        :class="{ 'is-error': errors['rule'], 'is-open': rule_dropdown_open }"
+                        @click="rule_dropdown_open = !rule_dropdown_open"
+                        style="cursor: pointer;"
+                    >
                         <v-icon icon="mdi-clock-check-outline" size="16" class="lib-modal__input-icon" />
-                        <input
-                            v-model="form.rule"
-                            type="text"
-                            placeholder="e.g. Regular Hours"
-                            class="lib-modal__input"
-                            @keyup.enter="save()"
-                            autofocus
+                        <span class="lib-dropdown__value" :class="{ 'is-placeholder': !form.rule }">
+                            {{ form.rule || 'Select a rule' }}
+                        </span>
+                        <v-icon
+                            icon="mdi-chevron-down"
+                            size="16"
+                            class="lib-dropdown__chevron"
+                            :class="{ 'is-open': rule_dropdown_open }"
                         />
+                    </div>
+                    <div v-if="rule_dropdown_open" class="lib-dropdown__list">
+                        <div
+                            v-for="option in ruleOptions"
+                            :key="option"
+                            class="lib-dropdown__item"
+                            :class="{ 'is-selected': form.rule === option }"
+                            @click="selectRule(option)"
+                        >
+                            <span class="lib-dropdown__item-name">{{ option }}</span>
+                            <v-icon
+                                v-if="form.rule === option"
+                                icon="mdi-check"
+                                size="13"
+                                class="lib-dropdown__item-check"
+                            />
+                        </div>
                     </div>
                     <p v-if="errors['rule']" class="lib-modal__error">
                         <v-icon icon="mdi-alert-circle-outline" size="12" />
@@ -183,14 +223,17 @@ const save = async () => {
                 <!-- Time -->
                 <div class="lib-modal__field">
                     <label class="lib-modal__label">
-                        Time
+                        Time (minutes)
                         <span class="lib-modal__required">*</span>
                     </label>
                     <div class="lib-modal__input-wrap" :class="{ 'is-error': errors['time'] }">
                         <v-icon icon="mdi-clock-outline" size="16" class="lib-modal__input-icon" />
                         <input
-                            v-model="form.time"
-                            type="time"
+                            v-model.number="form.time"
+                            type="number"
+                            min="0"
+                            max="15"
+                            placeholder="e.g. 5"
                             class="lib-modal__input"
                         />
                     </div>
@@ -202,16 +245,26 @@ const save = async () => {
 
                 <!-- Offices Multi-select -->
                 <div class="lib-modal__field" ref="dropdown_ref">
-                    <label class="lib-modal__label">Offices</label>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                        <label class="lib-modal__label" style="margin-bottom:0;">Offices</label>
+                        <label class="all-offices-check">
+                            <input
+                                type="checkbox"
+                                v-model="all_offices"
+                                @change="() => { form.offices = []; dropdown_open = false; }"
+                            />
+                            <span>All Offices</span>
+                        </label>
+                    </div>
                     <div
                         class="lib-modal__input-wrap"
-                        :class="{ 'is-error': errors['offices'], 'is-open': dropdown_open }"
-                        @click="dropdown_open = !dropdown_open"
-                        style="cursor: pointer;"
+                        :class="{ 'is-error': errors['offices'], 'is-open': dropdown_open, 'is-disabled': all_offices }"
+                        @click="!all_offices && (dropdown_open = !dropdown_open)"
+                        :style="all_offices ? 'cursor:not-allowed;opacity:0.45;' : 'cursor:pointer;'"
                     >
                         <v-icon icon="mdi-office-building-outline" size="16" class="lib-modal__input-icon" />
                         <span class="lib-dropdown__value" :class="{ 'is-placeholder': !selectedOfficesLabel }">
-                            {{ selectedOfficesLabel || 'All offices (none selected)' }}
+                            {{ all_offices ? 'All offices' : (selectedOfficesLabel || 'Select offices') }}
                         </span>
                         <v-icon
                             icon="mdi-chevron-down"
@@ -220,7 +273,7 @@ const save = async () => {
                             :class="{ 'is-open': dropdown_open }"
                         />
                     </div>
-                    <div v-if="dropdown_open" class="lib-dropdown__list">
+                    <div v-if="dropdown_open && !all_offices" class="lib-dropdown__list">
                         <div
                             v-for="office in officeOptions"
                             :key="office.id"
@@ -255,7 +308,7 @@ const save = async () => {
                 </button>
                 <button
                     class="lib-modal__btn lib-modal__btn--save"
-                    :disabled="!form.rule?.trim() || !form.time || is_loading"
+                    :disabled="!form.rule || !form.time || is_loading"
                     @click="save()"
                 >
                     <v-icon
@@ -275,3 +328,21 @@ const save = async () => {
         </div>
     </v-dialog>
 </template>
+
+<style scoped>
+.all-offices-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #8aa0d7;
+    cursor: pointer;
+    user-select: none;
+}
+.all-offices-check input[type="checkbox"] {
+    accent-color: #1fbfb8;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+</style>

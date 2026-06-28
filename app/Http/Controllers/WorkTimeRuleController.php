@@ -26,7 +26,7 @@ class WorkTimeRuleController extends Controller
     {
         try {
             $workTimeRule = new WorkTimeRule();
-            $workTimeRule->rule        = ucwords($request->rule);
+            $workTimeRule->rule        = $request->rule;
             $workTimeRule->description = $request->description;
             $workTimeRule->time        = $request->time;
             $workTimeRule->offices     = $request->offices ?: null;
@@ -38,11 +38,11 @@ class WorkTimeRuleController extends Controller
         }
     }
 
-    public function update($id, WorkTimeRuleRequest $request)
+    public function update(int $id, WorkTimeRuleRequest $request)
     {
         try {
             $workTimeRule = WorkTimeRule::findOrFail($id);
-            $workTimeRule->rule        = ucwords($request->rule);
+            $workTimeRule->rule        = $request->rule;
             $workTimeRule->description = $request->description;
             $workTimeRule->time        = $request->time;
             $workTimeRule->offices     = $request->offices ?: null;
@@ -54,7 +54,7 @@ class WorkTimeRuleController extends Controller
         }
     }
 
-    public function destroy($id)
+    public function destroy(int $id)
     {
         WorkTimeRule::findOrFail($id)->delete();
         return response(['message' => 'Work Time Rule has been successfully deleted!']);

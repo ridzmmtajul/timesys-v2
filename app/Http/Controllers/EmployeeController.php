@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\EmployeeRequest;
+use App\Http\Resources\Employee as ResourcesEmployee;
 use App\Models\Employee;
 use App\Models\EmploymentType;
 use App\Models\Office;
 use App\Models\OfficeDivision;
 use App\Models\Position;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class EmployeeController extends Controller
 {
@@ -49,7 +52,7 @@ class EmployeeController extends Controller
         return response()->json([
             'success' => true,
             'data'    => [
-                'offices'          => Office::orderBy('name')->get(['id', 'name']),
+                'offices'          => Office::orderBy('name')->get(['id', 'name', 'prefix', 'latest_employee_no']),
                 'employment_types' => EmploymentType::orderBy('name')->get(['id', 'name']),
                 'positions'        => Position::orderBy('name')->get(['id', 'name']),
                 'office_divisions' => OfficeDivision::orderBy('name')->get(['id', 'name']),
@@ -57,68 +60,39 @@ class EmployeeController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(EmployeeRequest $request)
     {
-        $validated = $request->validate([
-            'employee_no'        => ['required', 'string', 'max:255'],
-            'first_name'         => ['required', 'string', 'max:255'],
-            'middle_name'        => ['nullable', 'string', 'max:255'],
-            'last_name'          => ['required', 'string', 'max:255'],
-            'name_ext'           => ['nullable', 'string', 'max:255'],
-            'gender'             => ['nullable', 'string', 'in:Male,Female'],
-            'contact_no'         => ['nullable', 'string', 'max:255'],
-            'job_title'          => ['nullable', 'string', 'max:255'],
-            'is_active'          => ['boolean'],
-            'office_id'          => ['required', 'exists:offices,id'],
-            'employment_type_id' => ['nullable', 'exists:employment_types,id'],
-            'position_id'        => ['nullable', 'exists:positions,id'],
-            'office_division_id' => ['nullable', 'exists:office_divisions,id'],
-            'title_id'           => ['nullable', 'integer'],
-        ]);
+        try {
+            $employee = Employee::create($request->validated());
 
-        $employee = Employee::create($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Employee created successfully.',
-            'data'    => $employee->load(['office', 'employmentType', 'position', 'officeDivision']),
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => 'Employee created successfully.',
+                'data'    => new ResourcesEmployee($employee->load(['office', 'employmentType', 'position', 'officeDivision'])),
+            ], Response::HTTP_CREATED);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     public function show(Employee $employee)
     {
-        return response()->json([
-            'success' => true,
-            'data'    => $employee->load(['office', 'employmentType', 'position', 'officeDivision']),
-        ]);
+        return new ResourcesEmployee($employee->load(['office', 'employmentType', 'position', 'officeDivision']));
     }
 
-    public function update(Request $request, Employee $employee)
+    public function update(EmployeeRequest $request, Employee $employee)
     {
-        $validated = $request->validate([
-            'employee_no'        => ['required', 'string', 'max:255'],
-            'first_name'         => ['required', 'string', 'max:255'],
-            'middle_name'        => ['nullable', 'string', 'max:255'],
-            'last_name'          => ['required', 'string', 'max:255'],
-            'name_ext'           => ['nullable', 'string', 'max:255'],
-            'gender'             => ['nullable', 'string', 'in:Male,Female'],
-            'contact_no'         => ['nullable', 'string', 'max:255'],
-            'job_title'          => ['nullable', 'string', 'max:255'],
-            'is_active'          => ['boolean'],
-            'office_id'          => ['required', 'exists:offices,id'],
-            'employment_type_id' => ['nullable', 'exists:employment_types,id'],
-            'position_id'        => ['nullable', 'exists:positions,id'],
-            'office_division_id' => ['nullable', 'exists:office_divisions,id'],
-            'title_id'           => ['nullable', 'integer'],
-        ]);
+        try {
+            $employee->update($request->validated());
 
-        $employee->update($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Employee updated successfully.',
-            'data'    => $employee->load(['office', 'employmentType', 'position', 'officeDivision']),
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Employee updated successfully.',
+                'data'    => new ResourcesEmployee($employee->load(['office', 'employmentType', 'position', 'officeDivision'])),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     public function destroy(Employee $employee)
@@ -128,6 +102,16 @@ class EmployeeController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Employee deleted successfully.',
+        ]);
+    }
+
+    public function toggleStatus(Employee $employee)
+    {
+        $employee->update(['is_active' => !$employee->is_active]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $employee->is_active ? 'Employee activated.' : 'Employee deactivated.',
         ]);
     }
 }

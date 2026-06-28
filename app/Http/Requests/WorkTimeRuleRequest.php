@@ -17,15 +17,15 @@ class WorkTimeRuleRequest extends FormRequest
     {
         if ($this->method() == "POST") {
             return [
-                'rule'        => 'required|string|max:255',
-                'time'        => 'required|string|max:255',
+                'rule'        => 'required|in:Grace Period,Work Time',
+                'time'        => 'required|integer|min:0|max:15',
                 'description' => 'nullable|string|max:255',
                 'offices'     => 'nullable|array',
             ];
         } else {
             return [
-                'rule'        => 'required|string|max:255',
-                'time'        => 'required|string|max:255',
+                'rule'        => 'required|in:Grace Period,Work Time',
+                'time'        => 'required|integer|min:0|max:15',
                 'description' => 'nullable|string|max:255',
                 'offices'     => 'nullable|array',
                 'id'          => 'required|exists:work_time_rules,id',

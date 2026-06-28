@@ -15,6 +15,7 @@ use App\Http\Controllers\PositionController;
 use App\Http\Controllers\PostNumberController;
 use App\Http\Controllers\ScheduleTypeController;
 use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\WorkTimeRuleController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
@@ -34,6 +35,12 @@ Route::post('/biometrics/{biometric}/refresh', [BiometricController::class, 'ref
 Route::post('/biometrics/{biometric}/sync-time', [BiometricController::class, 'syncTime']);
 Route::get('/biometrics/{biometric}/download-log', [BiometricController::class, 'downloadLog']);
 Route::post('/biometric/pull', [BiometricController::class, 'pullLogs']);
+
+Route::get('/users/options', [UserController::class, 'options']);
+Route::get('/users', [UserController::class, 'index']);
+Route::post('/users', [UserController::class, 'store']);
+Route::put('/users/{id}', [UserController::class, 'update']);
+Route::delete('/users/{id}', [UserController::class, 'destroy']);
 
 Route::get('/roles', [RoleController::class, 'index']);
 Route::post('/roles', [RoleController::class, 'store']);
@@ -98,3 +105,4 @@ Route::post('/employees', [EmployeeController::class, 'store']);
 Route::get('/employees/{employee}', [EmployeeController::class, 'show']);
 Route::put('/employees/{employee}', [EmployeeController::class, 'update']);
 Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy']);
+Route::patch('/employees/{employee}/toggle-status', [EmployeeController::class, 'toggleStatus']);

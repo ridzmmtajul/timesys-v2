@@ -104,7 +104,7 @@ watch(() => query.search, () => {
 
                 <!-- Time Column -->
                 <template v-slot:item.time="{ item }">
-                    <span class="lib-table__muted">{{ item.time || '—' }}</span>
+                    <span class="lib-table__muted">{{ item.time != null ? item.time + ' min' : '—' }}</span>
                 </template>
 
                 <!-- Offices Column -->

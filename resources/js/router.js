@@ -11,7 +11,8 @@ import PositionList from './components/libraries/positions/Index.vue';
 import PostNumberList from './components/libraries/post-numbers/Index.vue';
 import ScheduleTypeList from './components/libraries/schedule-types/Index.vue';
 import ScheduleList from './components/libraries/schedules/Index.vue';
-import WorkTimeRuleList from './components/libraries/work-time-rules/Index.vue';
+import WorkTimeRuleList from './components/settings/work-time-rules/Index.vue';
+import UserList from './components/settings/users/Index.vue';
 
 const routes = [
   { path: '/', redirect: '/biometric' },
@@ -28,7 +29,7 @@ const routes = [
   { path: '/libraries/schedule-types', component: ScheduleTypeList },
   { path: '/libraries/schedules', component: ScheduleList },
   { path: '/settings/work-time-rules', component: WorkTimeRuleList },
-  { path: '/settings/accounts', component: WorkTimeRuleList },
+  { path: '/settings/accounts', component: UserList },
 ];
 
 export default createRouter({

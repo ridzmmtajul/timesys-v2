@@ -7,7 +7,7 @@ const route = useRoute();
 const logoUrl = '/images/logo.png';
 
 const navItems = [
-  { path: '/biometric', label: 'Biometric list', icon: 'mdi mdi-chip' },
+  { path: '/biometric', label: 'Biometrics', icon: 'mdi mdi-chip' },
   { path: '/employees', label: 'Employees', icon: 'mdi mdi-account-group' },
 ];
 

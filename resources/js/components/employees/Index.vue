@@ -1,3 +1,168 @@
+<script setup>
+import { ref, onMounted } from 'vue';
+import axios from 'axios';
+import EmployeeForm from './Form/Create.vue';
+import ThemeSwal, { swalClass } from '../../utils/swal.js';
+
+const employees      = ref([]);
+const loading        = ref(false);
+const saving         = ref(false);
+const showModal      = ref(false);
+const editingEmployee = ref(null);
+const search         = ref('');
+const page           = ref(1);
+const activeCount    = ref(0);
+const errors         = ref([]);
+const pagination     = ref({ current_page: 1, last_page: 1, total: 0, per_page: 15 });
+const options        = ref({ offices: [], employment_types: [], positions: [], office_divisions: [] });
+
+let searchTimeout = null;
+
+function fullName(emp) {
+  let name = `${emp.last_name}, ${emp.first_name}`;
+  if (emp.middle_name) name += ` ${emp.middle_name.charAt(0)}.`;
+  if (emp.name_ext)    name += ` ${emp.name_ext}`;
+  return name;
+}
+
+function initials(emp) {
+  return `${(emp.first_name || ' ').charAt(0)}${(emp.last_name || ' ').charAt(0)}`.toUpperCase();
+}
+
+function onSearchInput() {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    page.value = 1;
+    fetchEmployees();
+  }, 400);
+}
+
+function goToPage(p) {
+  page.value = p;
+  fetchEmployees();
+}
+
+async function fetchEmployees() {
+  loading.value = true;
+  try {
+    const { data } = await axios.get('/api/employees', {
+      params: { search: search.value || undefined, page: page.value },
+    });
+    employees.value = data.data.data || [];
+    pagination.value = {
+      current_page: data.data.current_page,
+      last_page:    data.data.last_page,
+      total:        data.data.total,
+      per_page:     data.data.per_page,
+    };
+    activeCount.value = data.meta?.active_count ?? 0;
+  } catch (error) {
+    console.error(error);
+    ThemeSwal.fire({ icon: 'error', title: 'Error', text: 'Unable to load employees.' });
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function fetchOptions() {
+  try {
+    const { data } = await axios.get('/api/employees/options');
+    options.value = data.data;
+  } catch (error) {
+    console.error('Failed to load form options:', error);
+  }
+}
+
+function openCreateModal() {
+  editingEmployee.value = null;
+  errors.value = [];
+  showModal.value = true;
+}
+
+function openEditModal(emp) {
+  editingEmployee.value = emp;
+  errors.value = [];
+  showModal.value = true;
+}
+
+function closeModal() {
+  if (saving.value) return;
+  showModal.value = false;
+  editingEmployee.value = null;
+}
+
+async function saveEmployee(payload) {
+  errors.value = [];
+
+  if (!payload.employee_no) errors.value.push('Employee No is required.');
+  if (!payload.first_name)  errors.value.push('First Name is required.');
+  if (!payload.last_name)   errors.value.push('Last Name is required.');
+  if (!payload.office_id)   errors.value.push('Office is required.');
+
+  if (errors.value.length) return;
+
+  saving.value = true;
+  try {
+    if (editingEmployee.value) {
+      await axios.put(`/api/employees/${editingEmployee.value.id}`, payload);
+    } else {
+      await axios.post('/api/employees', payload);
+    }
+    showModal.value = false;
+    editingEmployee.value = null;
+    await fetchEmployees();
+  } catch (error) {
+    const errData = error?.response?.data;
+    if (errData?.errors) {
+      errors.value = Object.values(errData.errors).flat();
+    } else {
+      errors.value = [errData?.message || 'An error occurred while saving.'];
+    }
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function toggleEmployeeStatus(emp) {
+  const action = emp.is_active ? 'deactivate' : 'activate';
+  const isDeactivating = emp.is_active;
+
+  const result = await ThemeSwal.fire({
+    title: isDeactivating ? 'Deactivate Employee?' : 'Activate Employee?',
+    text: `${fullName(emp)} will be marked as ${isDeactivating ? 'inactive' : 'active'}.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: isDeactivating ? 'Yes, deactivate' : 'Yes, activate',
+    customClass: {
+      ...swalClass,
+      confirmButton: isDeactivating ? 'ts-swal-btn ts-swal-btn--danger' : 'ts-swal-btn ts-swal-btn--confirm',
+    },
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    await axios.patch(`/api/employees/${emp.id}/toggle-status`);
+    await fetchEmployees();
+    ThemeSwal.fire({
+      icon: 'success',
+      title: isDeactivating ? 'Deactivated' : 'Activated',
+      text: `${fullName(emp)} has been ${isDeactivating ? 'deactivated' : 'activated'}.`,
+    });
+  } catch (error) {
+    ThemeSwal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: error?.response?.data?.message || `Unable to ${action} employee.`,
+    });
+  }
+}
+
+onMounted(() => {
+  fetchEmployees();
+  fetchOptions();
+});
+</script>
 <template>
   <section class="employee-dashboard">
     <header class="hero-bar">
@@ -49,10 +214,8 @@
             <tr>
               <th>Employee No</th>
               <th>Name</th>
-              <th>Gender</th>
-              <th>Contact</th>
-              <th>Job Title</th>
               <th>Office</th>
+              <th>Office Division</th>
               <th>Employment Type</th>
               <th>Status</th>
               <th>Actions</th>
@@ -67,10 +230,8 @@
                   <span class="emp-fullname">{{ fullName(emp) }}</span>
                 </div>
               </td>
-              <td>{{ emp.gender || '—' }}</td>
-              <td>{{ emp.contact_no || '—' }}</td>
-              <td>{{ emp.job_title || '—' }}</td>
               <td>{{ emp.office?.name || '—' }}</td>
+              <td>{{ emp.office_division?.name || '—' }}</td>
               <td>{{ emp.employment_type?.name || '—' }}</td>
               <td>
                 <span class="status-badge" :class="emp.is_active ? 'status-active' : 'status-inactive'">
@@ -83,8 +244,21 @@
                   <button class="action-btn edit-btn" title="Edit" @click="openEditModal(emp)">
                     <i class="fas fa-pen"></i>
                   </button>
-                  <button class="action-btn delete-btn" title="Delete" @click="deleteEmployee(emp)">
-                    <i class="fas fa-trash-alt"></i>
+                  <button
+                    v-if="emp.is_active"
+                    class="action-btn deactivate-btn"
+                    title="Deactivate"
+                    @click="toggleEmployeeStatus(emp)"
+                  >
+                    <i class="fas fa-user-slash"></i>
+                  </button>
+                  <button
+                    v-else
+                    class="action-btn activate-btn"
+                    title="Activate"
+                    @click="toggleEmployeeStatus(emp)"
+                  >
+                    <i class="fas fa-user-check"></i>
                   </button>
                 </div>
               </td>
@@ -130,326 +304,17 @@
       </footer>
     </div>
 
-    <!-- Create / Edit Modal -->
-    <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
-      <div class="modal">
-        <div class="modal-header">
-          <h3>
-            <i class="fas" :class="isEditing ? 'fa-pen' : 'fa-plus'"></i>
-            {{ isEditing ? 'Edit Employee' : 'Add Employee' }}
-          </h3>
-          <button class="modal-close" @click="closeModal">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-
-        <div class="modal-body">
-          <div class="form-grid">
-            <div class="form-group">
-              <label>Employee No <span class="req">*</span></label>
-              <input v-model.trim="form.employee_no" placeholder="e.g. EMP-0001" />
-            </div>
-            <div class="form-group">
-              <label>Name Extension</label>
-              <input v-model.trim="form.name_ext" placeholder="Jr., Sr., III" />
-            </div>
-
-            <div class="form-group">
-              <label>First Name <span class="req">*</span></label>
-              <input v-model.trim="form.first_name" placeholder="First name" />
-            </div>
-            <div class="form-group">
-              <label>Middle Name</label>
-              <input v-model.trim="form.middle_name" placeholder="Middle name" />
-            </div>
-
-            <div class="form-group">
-              <label>Last Name <span class="req">*</span></label>
-              <input v-model.trim="form.last_name" placeholder="Last name" />
-            </div>
-            <div class="form-group">
-              <label>Gender</label>
-              <select v-model="form.gender">
-                <option value="">— Select —</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label>Contact No</label>
-              <input v-model.trim="form.contact_no" placeholder="Contact number" />
-            </div>
-            <div class="form-group">
-              <label>Job Title</label>
-              <input v-model.trim="form.job_title" placeholder="Job title" />
-            </div>
-
-            <div class="form-group">
-              <label>Office <span class="req">*</span></label>
-              <select v-model="form.office_id">
-                <option value="">— Select office —</option>
-                <option v-for="o in options.offices" :key="o.id" :value="o.id">{{ o.name }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Employment Type</label>
-              <select v-model="form.employment_type_id">
-                <option value="">— None —</option>
-                <option v-for="t in options.employment_types" :key="t.id" :value="t.id">{{ t.name }}</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label>Position</label>
-              <select v-model="form.position_id">
-                <option value="">— None —</option>
-                <option v-for="p in options.positions" :key="p.id" :value="p.id">{{ p.name }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Office Division</label>
-              <select v-model="form.office_division_id">
-                <option value="">— None —</option>
-                <option v-for="d in options.office_divisions" :key="d.id" :value="d.id">{{ d.name }}</option>
-              </select>
-            </div>
-
-            <div class="form-group full-width">
-              <label class="toggle-row">
-                <span>Active Employee</span>
-                <span class="toggle-switch">
-                  <input type="checkbox" v-model="form.is_active" />
-                  <span class="slider"></span>
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <div v-if="errors.length" class="error-list">
-            <div v-for="(err, i) in errors" :key="i" class="error-item">
-              <i class="fas fa-exclamation-circle"></i>
-              {{ err }}
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn-cancel" :disabled="saving" @click="closeModal">Cancel</button>
-          <button class="btn-save" :disabled="saving" @click="saveEmployee">
-            <i class="fas" :class="saving ? 'fa-circle-notch fa-spin' : 'fa-check'"></i>
-            {{ saving ? 'Saving...' : (isEditing ? 'Update' : 'Create') }}
-          </button>
-        </div>
-      </div>
-    </div>
+    <EmployeeForm
+      :show="showModal"
+      :employee="editingEmployee"
+      :options="options"
+      :saving="saving"
+      :errors="errors"
+      @close="closeModal"
+      @save="saveEmployee"
+    />
   </section>
 </template>
-
-<script>
-import axios from 'axios';
-
-const BLANK_FORM = {
-  employee_no: '',
-  first_name: '',
-  middle_name: '',
-  last_name: '',
-  name_ext: '',
-  gender: '',
-  contact_no: '',
-  job_title: '',
-  is_active: true,
-  office_id: '',
-  employment_type_id: '',
-  position_id: '',
-  office_division_id: '',
-  title_id: null,
-};
-
-export default {
-  name: 'EmployeeList',
-
-  data() {
-    return {
-      employees: [],
-      loading: false,
-      saving: false,
-      showModal: false,
-      isEditing: false,
-      editingId: null,
-      search: '',
-      searchTimeout: null,
-      page: 1,
-      pagination: {
-        current_page: 1,
-        last_page: 1,
-        total: 0,
-        per_page: 15,
-      },
-      activeCount: 0,
-      options: {
-        offices: [],
-        employment_types: [],
-        positions: [],
-        office_divisions: [],
-      },
-      form: { ...BLANK_FORM },
-      errors: [],
-    };
-  },
-
-  mounted() {
-    this.fetchEmployees();
-    this.fetchOptions();
-  },
-
-  methods: {
-    fullName(emp) {
-      let name = `${emp.last_name}, ${emp.first_name}`;
-      if (emp.middle_name) name += ` ${emp.middle_name.charAt(0)}.`;
-      if (emp.name_ext) name += ` ${emp.name_ext}`;
-      return name;
-    },
-
-    initials(emp) {
-      return `${(emp.first_name || ' ').charAt(0)}${(emp.last_name || ' ').charAt(0)}`.toUpperCase();
-    },
-
-    onSearchInput() {
-      clearTimeout(this.searchTimeout);
-      this.searchTimeout = setTimeout(() => {
-        this.page = 1;
-        this.fetchEmployees();
-      }, 400);
-    },
-
-    goToPage(p) {
-      this.page = p;
-      this.fetchEmployees();
-    },
-
-    async fetchEmployees() {
-      this.loading = true;
-      try {
-        const { data } = await axios.get('/api/employees', {
-          params: { search: this.search || undefined, page: this.page },
-        });
-        this.employees = data.data.data || [];
-        this.pagination = {
-          current_page: data.data.current_page,
-          last_page: data.data.last_page,
-          total: data.data.total,
-          per_page: data.data.per_page,
-        };
-        this.activeCount = data.meta?.active_count ?? 0;
-      } catch (error) {
-        console.error(error);
-        alert('Unable to load employees.');
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    async fetchOptions() {
-      try {
-        const { data } = await axios.get('/api/employees/options');
-        this.options = data.data;
-      } catch (error) {
-        console.error('Failed to load form options:', error);
-      }
-    },
-
-    openCreateModal() {
-      this.isEditing = false;
-      this.editingId = null;
-      this.form = { ...BLANK_FORM };
-      this.errors = [];
-      this.showModal = true;
-    },
-
-    openEditModal(emp) {
-      this.isEditing = true;
-      this.editingId = emp.id;
-      this.form = {
-        employee_no: emp.employee_no || '',
-        first_name: emp.first_name || '',
-        middle_name: emp.middle_name || '',
-        last_name: emp.last_name || '',
-        name_ext: emp.name_ext || '',
-        gender: emp.gender || '',
-        contact_no: emp.contact_no || '',
-        job_title: emp.job_title || '',
-        is_active: Boolean(emp.is_active),
-        office_id: emp.office_id || '',
-        employment_type_id: emp.employment_type_id || '',
-        position_id: emp.position_id || '',
-        office_division_id: emp.office_division_id || '',
-        title_id: emp.title_id || null,
-      };
-      this.errors = [];
-      this.showModal = true;
-    },
-
-    closeModal() {
-      if (this.saving) return;
-      this.showModal = false;
-    },
-
-    buildPayload() {
-      return {
-        ...this.form,
-        employment_type_id: this.form.employment_type_id || null,
-        position_id: this.form.position_id || null,
-        office_division_id: this.form.office_division_id || null,
-        title_id: this.form.title_id || null,
-      };
-    },
-
-    async saveEmployee() {
-      this.errors = [];
-
-      if (!this.form.employee_no) this.errors.push('Employee No is required.');
-      if (!this.form.first_name) this.errors.push('First Name is required.');
-      if (!this.form.last_name) this.errors.push('Last Name is required.');
-      if (!this.form.office_id) this.errors.push('Office is required.');
-
-      if (this.errors.length) return;
-
-      this.saving = true;
-      try {
-        if (this.isEditing) {
-          await axios.put(`/api/employees/${this.editingId}`, this.buildPayload());
-        } else {
-          await axios.post('/api/employees', this.buildPayload());
-        }
-        this.showModal = false;
-        await this.fetchEmployees();
-      } catch (error) {
-        const errData = error?.response?.data;
-        if (errData?.errors) {
-          this.errors = Object.values(errData.errors).flat();
-        } else {
-          this.errors = [errData?.message || 'An error occurred while saving.'];
-        }
-      } finally {
-        this.saving = false;
-      }
-    },
-
-    async deleteEmployee(emp) {
-      if (!confirm(`Delete employee "${this.fullName(emp)}"? This cannot be undone.`)) return;
-
-      try {
-        await axios.delete(`/api/employees/${emp.id}`);
-        await this.fetchEmployees();
-      } catch (error) {
-        alert(error?.response?.data?.message || 'Unable to delete employee.');
-      }
-    },
-  },
-};
-</script>
-
 <style scoped>
 .employee-dashboard {
   min-height: calc(100vh - 40px);
@@ -728,13 +593,22 @@ export default {
   background: rgba(63, 109, 199, 0.38);
 }
 
-.delete-btn {
+.deactivate-btn {
   background: rgba(220, 60, 60, 0.16);
   color: #f08080;
 }
 
-.delete-btn:hover {
+.deactivate-btn:hover {
   background: rgba(220, 60, 60, 0.3);
+}
+
+.activate-btn {
+  background: rgba(31, 191, 184, 0.16);
+  color: #75e7d7;
+}
+
+.activate-btn:hover {
+  background: rgba(31, 191, 184, 0.3);
 }
 
 .empty-table {
@@ -815,247 +689,6 @@ export default {
 .footer-info i {
   color: #1fbfb8;
   margin-right: 6px;
-}
-
-/* ── Modal ── */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(2, 7, 20, 0.72);
-  display: grid;
-  place-items: center;
-  z-index: 100;
-  padding: 20px;
-  backdrop-filter: blur(4px);
-}
-
-.modal {
-  width: 100%;
-  max-width: 680px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  border-radius: 20px;
-  background: linear-gradient(180deg, rgba(14, 22, 46, 0.98) 0%, rgba(9, 15, 32, 0.99) 100%);
-  border: 1px solid rgba(121, 146, 207, 0.22);
-  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5);
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px 18px;
-  border-bottom: 1px solid rgba(121, 146, 207, 0.14);
-  flex-shrink: 0;
-}
-
-.modal-header h3 {
-  font-size: 18px;
-  color: #f3f7ff;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.modal-header h3 i {
-  color: #1fbfb8;
-  font-size: 14px;
-}
-
-.modal-close {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: 0;
-  background: rgba(255, 255, 255, 0.06);
-  color: #9bb0da;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-}
-
-.modal-close:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: white;
-}
-
-.modal-body {
-  overflow-y: auto;
-  padding: 20px 24px;
-  flex: 1;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.form-group.full-width {
-  grid-column: 1 / -1;
-}
-
-.form-group label {
-  font-size: 12px;
-  color: #97add8;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.req {
-  color: #f08080;
-}
-
-.form-group input,
-.form-group select {
-  height: 42px;
-  border-radius: 12px;
-  border: 1px solid rgba(121, 146, 207, 0.18);
-  background: rgba(7, 13, 28, 0.7);
-  color: #edf5ff;
-  padding: 0 14px;
-  outline: none;
-  font-size: 14px;
-}
-
-.form-group input:focus,
-.form-group select:focus {
-  border-color: rgba(31, 191, 184, 0.6);
-  box-shadow: 0 0 0 3px rgba(31, 191, 184, 0.14);
-}
-
-.form-group select option {
-  background: #0e1630;
-}
-
-/* ── Toggle switch ── */
-.toggle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: rgba(7, 13, 28, 0.5);
-  border: 1px solid rgba(121, 146, 207, 0.14);
-  cursor: pointer;
-  font-size: 14px;
-  color: #c8d6f8;
-}
-
-.toggle-switch {
-  position: relative;
-  width: 42px;
-  height: 24px;
-  flex-shrink: 0;
-}
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-  position: absolute;
-}
-
-.slider {
-  position: absolute;
-  inset: 0;
-  border-radius: 999px;
-  background: rgba(121, 146, 207, 0.2);
-  transition: background 0.2s;
-  cursor: pointer;
-}
-
-.slider::before {
-  content: '';
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  left: 3px;
-  top: 3px;
-  border-radius: 50%;
-  background: #9bb0da;
-  transition: transform 0.2s, background 0.2s;
-}
-
-.toggle-switch input:checked + .slider {
-  background: rgba(31, 191, 184, 0.3);
-}
-
-.toggle-switch input:checked + .slider::before {
-  transform: translateX(18px);
-  background: #1fbfb8;
-}
-
-/* ── Error list ── */
-.error-list {
-  margin-top: 14px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: rgba(220, 60, 60, 0.12);
-  border: 1px solid rgba(220, 60, 60, 0.25);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.error-item {
-  font-size: 13px;
-  color: #f08080;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* ── Modal footer ── */
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 16px 24px 20px;
-  border-top: 1px solid rgba(121, 146, 207, 0.14);
-  flex-shrink: 0;
-}
-
-.btn-cancel {
-  height: 40px;
-  padding: 0 18px;
-  border-radius: 10px;
-  border: 1px solid rgba(121, 146, 207, 0.2);
-  background: transparent;
-  color: #9bb0da;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.btn-cancel:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.btn-save {
-  height: 40px;
-  padding: 0 20px;
-  border-radius: 10px;
-  border: 0;
-  background: linear-gradient(90deg, #1fbfb8 0%, #52d3d0 100%);
-  color: #06162f;
-  font-weight: 700;
-  cursor: pointer;
-  font-size: 14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.btn-save:disabled {
-  opacity: 0.7;
-  cursor: wait;
 }
 
 @media (max-width: 1024px) {
