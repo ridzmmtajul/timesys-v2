@@ -22,6 +22,11 @@ class OfficeController extends Controller
         return ResourcesOffice::collection($offices);
     }
 
+    public function options()
+    {
+        return response()->json(Office::select('id', 'code', 'name')->orderBy('name')->get());
+    }
+
     public function store(OfficeRequest $request)
     {
         try {

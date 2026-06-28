@@ -7,6 +7,7 @@ use App\Http\Controllers\BiometricController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\OfficeController;
+use App\Http\Controllers\OfficeDivisionController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -31,10 +32,16 @@ Route::post('/roles', [RoleController::class, 'store']);
 Route::put('/roles/{id}', [RoleController::class, 'update']);
 Route::delete('/roles/{id}', [RoleController::class, 'destroy']);
 
+Route::get('/offices/options', [OfficeController::class, 'options']);
 Route::get('/offices', [OfficeController::class, 'index']);
 Route::post('/offices', [OfficeController::class, 'store']);
 Route::put('/offices/{id}', [OfficeController::class, 'update']);
 Route::delete('/offices/{id}', [OfficeController::class, 'destroy']);
+
+Route::get('/office-divisions', [OfficeDivisionController::class, 'index']);
+Route::post('/office-divisions', [OfficeDivisionController::class, 'store']);
+Route::put('/office-divisions/{id}', [OfficeDivisionController::class, 'update']);
+Route::delete('/office-divisions/{id}', [OfficeDivisionController::class, 'destroy']);
 
 Route::get('/employees/options', [EmployeeController::class, 'options']);
 Route::get('/employees', [EmployeeController::class, 'index']);

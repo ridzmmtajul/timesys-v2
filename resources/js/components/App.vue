@@ -3,10 +3,11 @@ import BiometricList from './biometric/Index.vue';
 import EmployeeList from './employees/Index.vue';
 import RoleList from './libraries/roles/Index.vue';
 import OfficeList from './libraries/offices/Index.vue';
+import OfficeDivisionList from './libraries/office-divisions/Index.vue';
 
 export default {
   name: 'App',
-  components: { BiometricList, EmployeeList, RoleList, OfficeList },
+  components: { BiometricList, EmployeeList, RoleList, OfficeList, OfficeDivisionList },
   data() {
     return {
       logoUrl: '/images/logo.png',
@@ -19,6 +20,7 @@ export default {
       settingsItems: [
         { name: 'settings-role', label: 'Role', icon: 'fas fa-user-tag' },
         { name: 'settings-office', label: 'Office', icon: 'fas fa-building' },
+        { name: 'settings-office-division', label: 'Office Division', icon: 'fas fa-sitemap' },
         { name: 'settings-employment-type', label: 'Employment Type', icon: 'fas fa-briefcase' },
       ]
     };
@@ -101,6 +103,7 @@ export default {
       <EmployeeList v-if="currentPage === 'employees'" />
       <RoleList v-if="currentPage === 'settings-role'" />
       <OfficeList v-if="currentPage === 'settings-office'" />
+      <OfficeDivisionList v-if="currentPage === 'settings-office-division'" />
     </main>
   </div>
 </template>
