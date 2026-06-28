@@ -8,6 +8,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\OfficeController;
 use App\Http\Controllers\OfficeDivisionController;
+use App\Http\Controllers\EmploymentTypeController;
 use App\Http\Controllers\TitleController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
@@ -43,6 +44,11 @@ Route::get('/office-divisions', [OfficeDivisionController::class, 'index']);
 Route::post('/office-divisions', [OfficeDivisionController::class, 'store']);
 Route::put('/office-divisions/{id}', [OfficeDivisionController::class, 'update']);
 Route::delete('/office-divisions/{id}', [OfficeDivisionController::class, 'destroy']);
+
+Route::get('/employment-types', [EmploymentTypeController::class, 'index']);
+Route::post('/employment-types', [EmploymentTypeController::class, 'store']);
+Route::put('/employment-types/{id}', [EmploymentTypeController::class, 'update']);
+Route::delete('/employment-types/{id}', [EmploymentTypeController::class, 'destroy']);
 
 Route::get('/titles', [TitleController::class, 'index']);
 Route::post('/titles', [TitleController::class, 'store']);
