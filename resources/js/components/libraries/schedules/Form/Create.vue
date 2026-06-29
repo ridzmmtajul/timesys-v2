@@ -50,7 +50,7 @@ watch(
         form.default_timein_PM  = value?.default_timein_PM ? value.default_timein_PM.substring(0, 5) : null;
         form.default_timeout_PM = value?.default_timeout_PM ? value.default_timeout_PM.substring(0, 5) : null;
         form.schedule_type_id = value?.schedule_type_id || null;
-        form.no_lunch_gap     = value?.no_lunch_gap || false;
+        form.no_lunch_gap     = !!value?.no_lunch_gap;
     },
     { immediate: true }
 );

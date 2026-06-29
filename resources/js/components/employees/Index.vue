@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import EmployeeForm from './Form/Create.vue';
+import ScheduleCalendar from './ScheduleCalendar.vue';
 import ThemeSwal, { swalClass } from '../../utils/swal.js';
 
 const employees      = ref([]);
@@ -15,6 +16,8 @@ const activeCount    = ref(0);
 const errors         = ref([]);
 const pagination     = ref({ current_page: 1, last_page: 1, total: 0, per_page: 15 });
 const options        = ref({ offices: [], employment_types: [], positions: [], office_divisions: [] });
+const showCalendar   = ref(false);
+const calendarEmployee = ref(null);
 
 let searchTimeout = null;
 
@@ -110,17 +113,30 @@ async function saveEmployee(payload) {
     }
     showModal.value = false;
     editingEmployee.value = null;
-    await fetchEmployees();
+    await Promise.all([fetchEmployees(), fetchOptions()]);
   } catch (error) {
     const errData = error?.response?.data;
+    const status  = error?.response?.status;
     if (errData?.errors) {
       errors.value = Object.values(errData.errors).flat();
+    } else if (status === 422 && errData && typeof errData === 'object') {
+      errors.value = Object.values(errData).flat();
     } else {
       errors.value = [errData?.message || 'An error occurred while saving.'];
     }
   } finally {
     saving.value = false;
   }
+}
+
+function openScheduleCalendar(emp) {
+  calendarEmployee.value = emp;
+  showCalendar.value = true;
+}
+
+function closeScheduleCalendar() {
+  showCalendar.value = false;
+  calendarEmployee.value = null;
 }
 
 async function toggleEmployeeStatus(emp) {
@@ -244,6 +260,9 @@ onMounted(() => {
                   <button class="action-btn edit-btn" title="Edit" @click="openEditModal(emp)">
                     <i class="fas fa-pen"></i>
                   </button>
+                  <button class="action-btn calendar-btn" title="View Work Schedule" @click="openScheduleCalendar(emp)">
+                    <i class="fas fa-calendar-alt"></i>
+                  </button>
                   <button
                     v-if="emp.is_active"
                     class="action-btn deactivate-btn"
@@ -312,6 +331,12 @@ onMounted(() => {
       :errors="errors"
       @close="closeModal"
       @save="saveEmployee"
+    />
+
+    <ScheduleCalendar
+      :show="showCalendar"
+      :employee="calendarEmployee"
+      @close="closeScheduleCalendar"
     />
   </section>
 </template>
@@ -609,6 +634,15 @@ onMounted(() => {
 
 .activate-btn:hover {
   background: rgba(31, 191, 184, 0.3);
+}
+
+.calendar-btn {
+  background: rgba(160, 90, 220, 0.16);
+  color: #c589f5;
+}
+
+.calendar-btn:hover {
+  background: rgba(160, 90, 220, 0.3);
 }
 
 .empty-table {

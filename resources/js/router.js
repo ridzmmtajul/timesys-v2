@@ -13,8 +13,10 @@ import PositionList from './components/libraries/positions/Index.vue';
 import PostNumberList from './components/libraries/post-numbers/Index.vue';
 import ScheduleTypeList from './components/libraries/schedule-types/Index.vue';
 import ScheduleList from './components/libraries/schedules/Index.vue';
+import WorkScheduleList from './components/work-schedules/Index.vue';
 import WorkTimeRuleList from './components/settings/work-time-rules/Index.vue';
 import UserList from './components/settings/users/Index.vue';
+import EmployeeListReport from './components/reports/EmployeeList.vue';
 
 const routes = [
   { path: '/login', component: LoginPage, meta: { guest: true } },
@@ -32,8 +34,10 @@ const routes = [
   { path: '/libraries/post-numbers', component: PostNumberList, meta: { requiresAuth: true } },
   { path: '/libraries/schedule-types', component: ScheduleTypeList, meta: { requiresAuth: true } },
   { path: '/libraries/schedules', component: ScheduleList, meta: { requiresAuth: true } },
+  { path: '/work-schedules', component: WorkScheduleList, meta: { requiresAuth: true } },
   { path: '/settings/work-time-rules', component: WorkTimeRuleList, meta: { requiresAuth: true } },
   { path: '/settings/accounts', component: UserList, meta: { requiresAuth: true } },
+  { path: '/reports/employees', component: EmployeeListReport, meta: { requiresAuth: true } },
 ];
 
 const router = createRouter({

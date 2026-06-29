@@ -26,6 +26,11 @@ class ScheduleController extends Controller
         return ResourcesSchedule::collection($schedules);
     }
 
+    public function options()
+    {
+        return response()->json(Schedule::select('id', 'name')->orderBy('name')->get());
+    }
+
     public function store(ScheduleRequest $request)
     {
         try {

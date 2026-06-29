@@ -20,19 +20,21 @@ const logoUrl = '/images/logo.png';
 const navItems = [
   { path: '/biometric', label: 'Biometrics', icon: 'mdi mdi-chip' },
   { path: '/employees', label: 'Employees', icon: 'mdi mdi-account-group' },
+  { path: '/reports/employees', label: 'Reports', icon: 'mdi mdi-file-chart-outline' },
+  // { path: '/work-schedules', label: 'Work Schedule', icon: 'mdi mdi-calendar-account' },
 ];
 
 const librariesItems = [
-  { path: '/libraries/roles', label: 'Role', icon: 'mdi mdi-account-tag' },
+  { path: '/libraries/schedules', label: 'Schedule', icon: 'mdi mdi-clock-outline' },
+  { path: '/libraries/holidays', label: 'Holiday', icon: 'mdi mdi-calendar-today' },
   { path: '/libraries/offices', label: 'Office', icon: 'mdi mdi-office-building' },
   { path: '/libraries/office-divisions', label: 'Office Division', icon: 'mdi mdi-sitemap' },
   { path: '/libraries/employment-types', label: 'Employment Type', icon: 'mdi mdi-briefcase' },
   { path: '/libraries/titles', label: 'Title', icon: 'mdi mdi-badge-account' },
-  { path: '/libraries/holidays', label: 'Holiday', icon: 'mdi mdi-calendar-today' },
   { path: '/libraries/positions', label: 'Position', icon: 'mdi mdi-account-tie' },
   { path: '/libraries/post-numbers', label: 'Post Number', icon: 'mdi mdi-pound' },
   { path: '/libraries/schedule-types', label: 'Schedule Type', icon: 'mdi mdi-calendar-clock' },
-  { path: '/libraries/schedules', label: 'Schedule', icon: 'mdi mdi-clock-outline' },
+  { path: '/libraries/roles', label: 'Role', icon: 'mdi mdi-account-tag' },
 ];
 
 const settingsItems = [
@@ -256,7 +258,7 @@ function toggleSettings() {
   background: linear-gradient(90deg, rgba(31, 191, 184, 0.22), rgba(31, 191, 184, 0.08));
   color: white;
   box-shadow: 0 0 0 1px rgba(31, 191, 184, 0.3), 0 10px 24px rgba(31, 191, 184, 0.12);
-  margin: 0px 1px;
+  margin: 1px 1px;
 }
 
 .nav-item.active i {

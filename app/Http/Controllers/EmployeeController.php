@@ -9,6 +9,8 @@ use App\Models\EmploymentType;
 use App\Models\Office;
 use App\Models\OfficeDivision;
 use App\Models\Position;
+use App\Models\Schedule;
+use App\Models\WorkSchedule;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -64,6 +66,18 @@ class EmployeeController extends Controller
     {
         try {
             $employee = Employee::create($request->validated());
+
+            $defaultSchedule = Schedule::find(1);
+
+            WorkSchedule::create([
+                'employee_id'  => $employee->id,
+                'schedule_id'  => $defaultSchedule?->id,
+                'schedule_for' => 'everyday',
+                'days'         => [],
+            ]);
+
+            Office::where('id', $employee->office_id)
+                ->update(['latest_employee_no' => $employee->employee_no]);
 
             return response()->json([
                 'success' => true,

@@ -17,7 +17,9 @@ use App\Http\Controllers\PostNumberController;
 use App\Http\Controllers\ScheduleTypeController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\WorkScheduleController;
 use App\Http\Controllers\WorkTimeRuleController;
+use App\Http\Controllers\ReportController;
 
 Route::post('/login', [AuthController::class, 'login']);
 
@@ -90,10 +92,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/schedule-types/{id}', [ScheduleTypeController::class, 'update']);
     Route::delete('/schedule-types/{id}', [ScheduleTypeController::class, 'destroy']);
 
+    Route::get('/schedules/options', [ScheduleController::class, 'options']);
     Route::get('/schedules', [ScheduleController::class, 'index']);
     Route::post('/schedules', [ScheduleController::class, 'store']);
     Route::put('/schedules/{id}', [ScheduleController::class, 'update']);
     Route::delete('/schedules/{id}', [ScheduleController::class, 'destroy']);
+
+    Route::get('/work-schedules/options', [WorkScheduleController::class, 'options']);
+    Route::get('/work-schedules', [WorkScheduleController::class, 'index']);
+    Route::post('/work-schedules', [WorkScheduleController::class, 'store']);
+    Route::put('/work-schedules/{id}', [WorkScheduleController::class, 'update']);
+    Route::delete('/work-schedules/{id}', [WorkScheduleController::class, 'destroy']);
 
     Route::get('/work-time-rules', [WorkTimeRuleController::class, 'index']);
     Route::post('/work-time-rules', [WorkTimeRuleController::class, 'store']);
@@ -104,6 +113,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/titles', [TitleController::class, 'store']);
     Route::put('/titles/{id}', [TitleController::class, 'update']);
     Route::delete('/titles/{id}', [TitleController::class, 'destroy']);
+
+    Route::get('/reports/employee-list', [ReportController::class, 'employeeList']);
 
     Route::get('/employees/options', [EmployeeController::class, 'options']);
     Route::get('/employees', [EmployeeController::class, 'index']);
