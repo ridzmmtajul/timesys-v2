@@ -146,10 +146,6 @@ function toggleSettings() {
           <span>{{ item.label }}</span>
         </router-link>
 
-        <button class="nav-subitem theme-toggle" @click="handleToggleTheme" :title="isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
-          <i :class="isDark ? 'mdi mdi-weather-sunny' : 'mdi mdi-weather-night'"></i>
-          <span>{{ isDark ? 'Light Mode' : 'Dark Mode' }}</span>
-        </button>
       </div>
     </nav>
 
@@ -160,6 +156,9 @@ function toggleSettings() {
           <span class="sidebar-user__name">{{ authUser.username }}</span>
           <small class="sidebar-user__role">{{ authUser.role?.name ?? 'User' }}</small>
         </div>
+        <button class="sidebar-theme" @click="handleToggleTheme" :title="isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+          <i :class="isDark ? 'mdi mdi-weather-sunny' : 'mdi mdi-weather-night'"></i>
+        </button>
         <button class="sidebar-logout" @click="handleLogout" title="Sign out">
           <i class="mdi mdi-logout"></i>
         </button>
@@ -424,17 +423,22 @@ function toggleSettings() {
   flex-shrink: 0;
 }
 
-.theme-toggle {
-  width: 100%;
+.sidebar-theme {
+  background: none;
   border: none;
-  background: transparent;
-  font-family: inherit;
   cursor: pointer;
-  text-align: left;
+  color: #1fbfb8;
+  font-size: 16px;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s, background 0.2s;
+  flex-shrink: 0;
 }
 
-.theme-toggle i {
-  color: #1fbfb8;
+.sidebar-theme:hover {
+  background: rgba(31, 191, 184, 0.1);
 }
 
 .sidebar-logout:hover {
