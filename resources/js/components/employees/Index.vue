@@ -18,6 +18,7 @@ const pagination     = ref({ current_page: 1, last_page: 1, total: 0, per_page: 
 const options        = ref({ offices: [], employment_types: [], positions: [], office_divisions: [] });
 const showCalendar   = ref(false);
 const calendarEmployee = ref(null);
+const syncing        = ref(false);
 
 let searchTimeout = null;
 
@@ -174,6 +175,37 @@ async function toggleEmployeeStatus(emp) {
   }
 }
 
+async function syncToServer() {
+  const confirm = await ThemeSwal.fire({
+    title: 'Sync Employees to Server?',
+    text: 'All employees will be uploaded to the central server.',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Yes, sync now',
+    customClass: { ...swalClass, confirmButton: 'ts-swal-btn ts-swal-btn--confirm' },
+  });
+
+  if (!confirm.isConfirmed) return;
+
+  syncing.value = true;
+  try {
+    const { data } = await axios.post('/api/sync/push-employees');
+    ThemeSwal.fire({
+      icon: 'success',
+      title: 'Sync Complete',
+      html: `<p><strong>${data.synced}</strong> employee(s) synced to central server.</p>${data.skipped ? `<p style="color:#f08080">${data.skipped} skipped.</p>` : ''}`,
+    });
+  } catch (error) {
+    ThemeSwal.fire({
+      icon: 'error',
+      title: 'Sync Failed',
+      text: error?.response?.data?.message || 'Unable to reach the central server.',
+    });
+  } finally {
+    syncing.value = false;
+  }
+}
+
 onMounted(() => {
   fetchEmployees();
   fetchOptions();
@@ -210,6 +242,11 @@ onMounted(() => {
             @input="onSearchInput"
           />
         </div>
+
+        <button class="btn-sync" :disabled="syncing" @click="syncToServer">
+          <i :class="syncing ? 'fas fa-circle-notch fa-spin' : 'fas fa-cloud-upload-alt'"></i>
+          {{ syncing ? 'Syncing...' : 'Sync to Server' }}
+        </button>
 
         <button class="btn-primary" @click="openCreateModal">
           <i class="fas fa-plus"></i>
@@ -444,6 +481,31 @@ onMounted(() => {
 
 .search-wrap input::placeholder {
   color: #6a84bf;
+}
+
+/* ── Sync button ── */
+.btn-sync {
+  border: 1px solid rgba(99, 179, 237, 0.35);
+  padding: 11px 16px;
+  border-radius: 999px;
+  background: rgba(30, 60, 120, 0.55);
+  color: #90cdf4;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.btn-sync:hover:not(:disabled) {
+  background: rgba(30, 60, 120, 0.8);
+}
+
+.btn-sync:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 /* ── Primary button ── */

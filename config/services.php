@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'sync' => [
+        'central_url' => env('CENTRAL_SERVER_URL'),  // set on LOCAL instance only
+        'api_key'     => env('SYNC_API_KEY'),         // same value on both instances
+    ],
+
 ];

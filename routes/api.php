@@ -20,8 +20,13 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\WorkScheduleController;
 use App\Http\Controllers\WorkTimeRuleController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SyncController;
 
 Route::post('/login', [AuthController::class, 'login']);
+
+// Sync receiver — API key auth, no Sanctum (server-to-server)
+Route::post('/sync/receive-employees', [SyncController::class, 'receiveEmployees'])
+    ->middleware('sync.api_key');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', fn (Request $request) => $request->user());
@@ -115,6 +120,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/titles/{id}', [TitleController::class, 'destroy']);
 
     Route::get('/reports/employee-list', [ReportController::class, 'employeeList']);
+
+    // Sync push — Sanctum-protected, called from local instance UI
+    Route::post('/sync/push-employees', [SyncController::class, 'pushEmployees']);
 
     Route::get('/employees/options', [EmployeeController::class, 'options']);
     Route::get('/employees', [EmployeeController::class, 'index']);
