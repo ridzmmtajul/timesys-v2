@@ -1,3 +1,223 @@
+<script setup>
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
+import axios from 'axios';
+
+const emit = defineEmits(['device-action']);
+
+const viewMode = ref('card');
+const devices = ref([]);
+const showForm = ref(false);
+const loading = ref(false);
+const saving = ref(false);
+const openDeviceMenuId = ref(null);
+const menuPosition = reactive({ top: 0, left: 0 });
+const newDevice = reactive({ device_name: '', ip_address: '' });
+
+const totalUsers = computed(() => devices.value.reduce((sum, d) => sum + Number(d.user_count || 0), 0));
+const totalLogs = computed(() => devices.value.reduce((sum, d) => sum + Number(d.log_count || 0), 0));
+
+function statusClass(status) {
+  return String(status || '').toLowerCase() === 'connected' ? 'online' : 'offline';
+}
+
+function toggleDeviceMenu(deviceId, event) {
+  if (openDeviceMenuId.value === deviceId) {
+    openDeviceMenuId.value = null;
+    return;
+  }
+  if (event) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    menuPosition.top = rect.bottom + 8;
+    menuPosition.left = rect.right - 220;
+  }
+  openDeviceMenuId.value = deviceId;
+}
+
+function closeDeviceMenu() {
+  openDeviceMenuId.value = null;
+}
+
+async function fetchDevices() {
+  loading.value = true;
+  try {
+    const { data } = await axios.get('/api/biometrics');
+    devices.value = data.data || [];
+  } catch (error) {
+    console.error(error);
+    alert('Unable to load biometric devices.');
+  } finally {
+    loading.value = false;
+  }
+}
+
+function toggleForm() {
+  showForm.value = !showForm.value;
+  if (!showForm.value) resetForm();
+}
+
+function resetForm() {
+  newDevice.device_name = '';
+  newDevice.ip_address = '';
+}
+
+function cancelForm() {
+  showForm.value = false;
+  resetForm();
+}
+
+async function addDevice() {
+  if (!newDevice.device_name.trim()) {
+    alert('Please enter a device name.');
+    return;
+  }
+  if (!newDevice.ip_address.trim()) {
+    alert('Please enter the IP address.');
+    return;
+  }
+  saving.value = true;
+  try {
+    await axios.post('/api/biometrics', { device_name: newDevice.device_name, ip_address: newDevice.ip_address });
+    await fetchDevices();
+    resetForm();
+    showForm.value = false;
+  } catch (error) {
+    console.error(error);
+    alert(error?.response?.data?.message || 'Unable to connect to biometric device.');
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function removeDevice(device) {
+  if (!confirm('Remove this biometric device?')) return;
+  try {
+    await axios.delete(`/api/biometrics/${device.id}`);
+    await fetchDevices();
+  } catch (error) {
+    console.error(error);
+    alert('Unable to remove biometric device.');
+  }
+}
+
+async function connectDevice(device) {
+  try {
+    const { data } = await axios.post(`/api/biometrics/${device.id}/connect`);
+    syncDeviceFromResponse(data?.data);
+  } catch (error) {
+    console.error(error);
+    alert(error?.response?.data?.message || 'Unable to connect biometric device.');
+  }
+}
+
+async function disconnectDevice(device) {
+  try {
+    const { data } = await axios.post(`/api/biometrics/${device.id}/disconnect`);
+    syncDeviceFromResponse(data?.data);
+  } catch (error) {
+    console.error(error);
+    alert(error?.response?.data?.message || 'Unable to disconnect biometric device.');
+  }
+}
+
+async function downloadLog(device) {
+  try {
+    const response = await axios.get(`/api/biometrics/${device.id}/download-log`, { responseType: 'blob' });
+    const contentDisposition = response.headers?.['content-disposition'] || '';
+    const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+    const fileName = fileNameMatch?.[1] || `biometric-${device.id}-logs.csv`;
+    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error(error);
+    alert(error?.response?.data?.message || 'Unable to download biometric logs.');
+  }
+}
+
+async function updateDevice(device) {
+  const deviceName = prompt('Update device name', device.device_name || '');
+  if (deviceName === null) return;
+  const ipAddress = prompt('Update IP address', device.ip_address || '');
+  if (ipAddress === null) return;
+  const productName = prompt('Update product name', device.product_name || '');
+  if (productName === null) return;
+  try {
+    const { data } = await axios.put(`/api/biometrics/${device.id}`, {
+      device_name: deviceName.trim(),
+      ip_address: ipAddress.trim(),
+      product_name: productName.trim()
+    });
+    syncDeviceFromResponse(data?.data);
+  } catch (error) {
+    console.error(error);
+    alert(error?.response?.data?.message || 'Unable to update biometric device.');
+  }
+}
+
+async function syncTime(device) {
+  try {
+    const { data } = await axios.post(`/api/biometrics/${device.id}/sync-time`);
+    alert(data?.message || 'Biometric device time synced.');
+  } catch (error) {
+    console.error(error);
+    alert(error?.response?.data?.message || 'Unable to sync biometric device time.');
+  }
+}
+
+async function refreshDevice(device) {
+  try {
+    const { data } = await axios.post(`/api/biometrics/${device.id}/refresh`);
+    syncDeviceFromResponse(data?.data);
+  } catch (error) {
+    console.error(error);
+    alert(error?.response?.data?.message || 'Unable to refresh biometric device data.');
+  }
+}
+
+function syncDeviceFromResponse(updatedDevice) {
+  if (!updatedDevice?.id) {
+    fetchDevices();
+    return;
+  }
+  const index = devices.value.findIndex((d) => d.id === updatedDevice.id);
+  if (index !== -1) {
+    devices.value.splice(index, 1, updatedDevice);
+    return;
+  }
+  fetchDevices();
+}
+
+async function handleDeviceAction(action, device) {
+  openDeviceMenuId.value = null;
+  emit('device-action', { action, device });
+
+  if (action === 'connect') { await connectDevice(device); return; }
+  if (action === 'disconnect') { await disconnectDevice(device); return; }
+  if (action === 'download-log') { await downloadLog(device); return; }
+  if (action === 'update-device') { await updateDevice(device); return; }
+  if (action === 'delete-device') { await removeDevice(device); return; }
+  if (action === 'sync-time') { await syncTime(device); return; }
+  if (action === 'refresh') { await refreshDevice(device); return; }
+
+  console.info(`Device action "${action}" triggered for`, device);
+}
+
+onMounted(() => {
+  fetchDevices();
+  document.addEventListener('click', closeDeviceMenu);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', closeDeviceMenu);
+});
+</script>
+
 <template>
   <section class="biometric-dashboard">
     <header class="hero-bar">
@@ -189,11 +409,11 @@
               <td>{{ device.serial_number || 'N/A' }}</td>
               <td>
                 <div class="device-action-wrap" @click.stop>
-                  <button class="action-menu-btn" type="button" title="Actions" aria-label="Actions" @click="toggleDeviceMenu(device.id)">
+                  <button class="action-menu-btn" type="button" title="Actions" aria-label="Actions" @click="toggleDeviceMenu(device.id, $event)">
                     <i class="fas fa-ellipsis-v"></i>
                   </button>
 
-                  <div v-if="openDeviceMenuId === device.id" class="device-action-menu" @click.stop>
+                  <div v-if="openDeviceMenuId === device.id" class="device-action-menu device-action-menu--fixed" :style="{ top: menuPosition.top + 'px', left: menuPosition.left + 'px' }" @click.stop>
                     <button class="device-action-item" type="button" @click="handleDeviceAction('connect', device)">
                       <i class="fas fa-arrow-left"></i>
                       <span>Connect</span>
@@ -251,264 +471,6 @@
     </div>
   </section>
 </template>
-
-<script>
-import axios from 'axios';
-
-export default {
-  name: 'BiometricList',
-  data() {
-    return {
-      viewMode: 'card',
-      devices: [],
-      showForm: false,
-      loading: false,
-      saving: false,
-      openDeviceMenuId: null,
-      newDevice: {
-        device_name: '',
-        ip_address: ''
-      }
-    };
-  },
-  computed: {
-    totalUsers() {
-      return this.devices.reduce((sum, device) => sum + Number(device.user_count || 0), 0);
-    },
-    totalLogs() {
-      return this.devices.reduce((sum, device) => sum + Number(device.log_count || 0), 0);
-    }
-  },
-  mounted() {
-    this.fetchDevices();
-    document.addEventListener('click', this.closeDeviceMenu);
-  },
-  beforeUnmount() {
-    document.removeEventListener('click', this.closeDeviceMenu);
-  },
-  methods: {
-    statusClass(status) {
-      return String(status || '').toLowerCase() === 'connected' ? 'online' : 'offline';
-    },
-    toggleDeviceMenu(deviceId) {
-      this.openDeviceMenuId = this.openDeviceMenuId === deviceId ? null : deviceId;
-    },
-    closeDeviceMenu() {
-      this.openDeviceMenuId = null;
-    },
-    async fetchDevices() {
-      this.loading = true;
-      try {
-        const { data } = await axios.get('/api/biometrics');
-        this.devices = data.data || [];
-      } catch (error) {
-        console.error(error);
-        alert('Unable to load biometric devices.');
-      } finally {
-        this.loading = false;
-      }
-    },
-    toggleForm() {
-      this.showForm = !this.showForm;
-      if (!this.showForm) {
-        this.resetForm();
-      }
-    },
-    resetForm() {
-      this.newDevice = {
-        device_name: '',
-        ip_address: ''
-      };
-    },
-    cancelForm() {
-      this.showForm = false;
-      this.resetForm();
-    },
-    async addDevice() {
-      if (!this.newDevice.device_name.trim()) {
-        alert('Please enter a device name.');
-        return;
-      }
-
-      if (!this.newDevice.ip_address.trim()) {
-        alert('Please enter the IP address.');
-        return;
-      }
-
-      this.saving = true;
-      try {
-        await axios.post('/api/biometrics', this.newDevice);
-        await this.fetchDevices();
-        this.resetForm();
-        this.showForm = false;
-      } catch (error) {
-        console.error(error);
-        const message = error?.response?.data?.message || 'Unable to connect to biometric device.';
-        alert(message);
-      } finally {
-        this.saving = false;
-      }
-    },
-    async removeDevice(device) {
-      if (!confirm('Remove this biometric device?')) {
-        return;
-      }
-
-      try {
-        await axios.delete(`/api/biometrics/${device.id}`);
-        await this.fetchDevices();
-      } catch (error) {
-        console.error(error);
-        alert('Unable to remove biometric device.');
-      }
-    },
-    async connectDevice(device) {
-      try {
-        const { data } = await axios.post(`/api/biometrics/${device.id}/connect`);
-        this.syncDeviceFromResponse(data?.data);
-      } catch (error) {
-        console.error(error);
-        alert(error?.response?.data?.message || 'Unable to connect biometric device.');
-      }
-    },
-    async disconnectDevice(device) {
-      try {
-        const { data } = await axios.post(`/api/biometrics/${device.id}/disconnect`);
-        this.syncDeviceFromResponse(data?.data);
-      } catch (error) {
-        console.error(error);
-        alert(error?.response?.data?.message || 'Unable to disconnect biometric device.');
-      }
-    },
-    async downloadLog(device) {
-      try {
-        const response = await axios.get(`/api/biometrics/${device.id}/download-log`, {
-          responseType: 'blob'
-        });
-
-        const contentDisposition = response.headers?.['content-disposition'] || '';
-        const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
-        const fileName = fileNameMatch?.[1] || `biometric-${device.id}-logs.csv`;
-        const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
-        const url = window.URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-
-        anchor.href = url;
-        anchor.download = fileName;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        window.URL.revokeObjectURL(url);
-      } catch (error) {
-        console.error(error);
-        alert(error?.response?.data?.message || 'Unable to download biometric logs.');
-      }
-    },
-    async updateDevice(device) {
-      const deviceName = prompt('Update device name', device.device_name || '');
-      if (deviceName === null) {
-        return;
-      }
-
-      const ipAddress = prompt('Update IP address', device.ip_address || '');
-      if (ipAddress === null) {
-        return;
-      }
-
-      const productName = prompt('Update product name', device.product_name || '');
-      if (productName === null) {
-        return;
-      }
-
-      try {
-        const { data } = await axios.put(`/api/biometrics/${device.id}`, {
-          device_name: deviceName.trim(),
-          ip_address: ipAddress.trim(),
-          product_name: productName.trim()
-        });
-
-        this.syncDeviceFromResponse(data?.data);
-      } catch (error) {
-        console.error(error);
-        alert(error?.response?.data?.message || 'Unable to update biometric device.');
-      }
-    },
-    async syncTime(device) {
-      try {
-        const { data } = await axios.post(`/api/biometrics/${device.id}/sync-time`);
-        alert(data?.message || 'Biometric device time synced.');
-      } catch (error) {
-        console.error(error);
-        alert(error?.response?.data?.message || 'Unable to sync biometric device time.');
-      }
-    },
-    async refreshDevice(device) {
-      try {
-        const { data } = await axios.post(`/api/biometrics/${device.id}/refresh`);
-        this.syncDeviceFromResponse(data?.data);
-      } catch (error) {
-        console.error(error);
-        alert(error?.response?.data?.message || 'Unable to refresh biometric device data.');
-      }
-    },
-    syncDeviceFromResponse(updatedDevice) {
-      if (!updatedDevice?.id) {
-        this.fetchDevices();
-        return;
-      }
-
-      const index = this.devices.findIndex((device) => device.id === updatedDevice.id);
-      if (index !== -1) {
-        this.devices.splice(index, 1, updatedDevice);
-        return;
-      }
-
-      this.fetchDevices();
-    },
-    async handleDeviceAction(action, device) {
-      this.openDeviceMenuId = null;
-      this.$emit('device-action', { action, device });
-
-      if (action === 'connect') {
-        await this.connectDevice(device);
-        return;
-      }
-
-      if (action === 'disconnect') {
-        await this.disconnectDevice(device);
-        return;
-      }
-
-      if (action === 'download-log') {
-        await this.downloadLog(device);
-        return;
-      }
-
-      if (action === 'update-device') {
-        await this.updateDevice(device);
-        return;
-      }
-
-      if (action === 'delete-device') {
-        await this.removeDevice(device);
-        return;
-      }
-
-      if (action === 'sync-time') {
-        await this.syncTime(device);
-        return;
-      }
-
-      if (action === 'refresh') {
-        await this.refreshDevice(device);
-        return;
-      }
-
-      console.info(`Device action "${action}" triggered for`, device);
-    }
-  }
-};
-</script>
 
 <style scoped>
 .biometric-dashboard {
@@ -921,6 +883,11 @@ export default {
 .device-action-menu--card {
   bottom: calc(100% + 10px);
   top: auto;
+}
+
+.device-action-menu--fixed {
+  position: fixed;
+  right: auto;
 }
 
 .device-action-item {

@@ -1,10 +1,16 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useTheme as useVuetifyTheme } from 'vuetify';
 import useAuth from '../composables/auth.js';
+import useTheme from '../composables/useTheme.js';
 
 const router = useRouter();
 const { logout, getAuthUser } = useAuth();
+
+const vuetifyTheme = useVuetifyTheme();
+const { isDark, toggleTheme: _toggleTheme } = useTheme();
+const handleToggleTheme = () => _toggleTheme(vuetifyTheme);
 
 const authUser = computed(() => getAuthUser());
 
@@ -20,8 +26,8 @@ const logoUrl = '/images/logo.png';
 const navItems = [
   { path: '/biometric', label: 'Biometrics', icon: 'mdi mdi-chip' },
   { path: '/employees', label: 'Employees', icon: 'mdi mdi-account-group' },
+  { path: '/work-schedules', label: 'Daily Time Record', icon: 'mdi mdi-calendar-account' },
   { path: '/reports/employees', label: 'Reports', icon: 'mdi mdi-file-chart-outline' },
-  // { path: '/work-schedules', label: 'Work Schedule', icon: 'mdi mdi-calendar-account' },
 ];
 
 const librariesItems = [
@@ -139,6 +145,11 @@ function toggleSettings() {
           <i :class="item.icon"></i>
           <span>{{ item.label }}</span>
         </router-link>
+
+        <button class="nav-subitem theme-toggle" @click="handleToggleTheme" :title="isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+          <i :class="isDark ? 'mdi mdi-weather-sunny' : 'mdi mdi-weather-night'"></i>
+          <span>{{ isDark ? 'Light Mode' : 'Dark Mode' }}</span>
+        </button>
       </div>
     </nav>
 
@@ -171,9 +182,9 @@ function toggleSettings() {
   display: grid;
   grid-template-rows: auto 1fr auto;
   padding: 28px 18px;
-  color: rgba(255, 255, 255, 0.8);
-  background: linear-gradient(180deg, rgba(8, 18, 44, 0.96) 0%, rgba(6, 14, 33, 0.98) 100%);
-  border-right: 1px solid rgba(108, 143, 214, 0.15);
+  color: var(--sidebar-color);
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
 }
 
 .brand {
@@ -189,14 +200,14 @@ function toggleSettings() {
   font-weight: 700;
   font-size: 22px;
   letter-spacing: -0.3px;
-  color: white;
+  color: var(--brand-title);
 }
 
 .brand small {
   display: block;
   margin-top: 2px;
   font-size: 14px;
-  color: #8aa0d7;
+  color: var(--brand-subtitle);
 }
 
 .brand-logo {
@@ -229,7 +240,7 @@ function toggleSettings() {
   border-radius: 18px;
   font-weight: 500;
   font-size: 16px;
-  color: #a9bce7;
+  color: var(--nav-text);
   transition: all 0.2s;
   cursor: pointer;
   flex-shrink: 0;
@@ -239,14 +250,14 @@ function toggleSettings() {
 .nav-item i {
   width: 24px;
   font-size: 18px;
-  color: #728cc4;
+  color: var(--nav-icon);
 }
 
 .nav-item .chevron {
   margin-left: auto;
   width: auto;
   font-size: 13px;
-  color: #728cc4;
+  color: var(--nav-icon);
   transition: transform 0.25s ease;
 }
 
@@ -256,7 +267,7 @@ function toggleSettings() {
 
 .nav-item.active {
   background: linear-gradient(90deg, rgba(31, 191, 184, 0.22), rgba(31, 191, 184, 0.08));
-  color: white;
+  color: var(--nav-active-text);
   box-shadow: 0 0 0 1px rgba(31, 191, 184, 0.3), 0 10px 24px rgba(31, 191, 184, 0.12);
   margin: 1px 1px;
 }
@@ -267,7 +278,7 @@ function toggleSettings() {
 
 .nav-item:not(.active):hover {
   background: rgba(255, 255, 255, 0.04);
-  color: white;
+  color: var(--nav-hover-text);
 }
 
 .libraries-dropdown,
@@ -312,7 +323,7 @@ function toggleSettings() {
   border-radius: 14px;
   font-weight: 500;
   font-size: 14px;
-  color: #8aa0d7;
+  color: var(--nav-subtext);
   cursor: pointer;
   transition: all 0.2s;
   flex-shrink: 0;
@@ -322,7 +333,7 @@ function toggleSettings() {
 .nav-subitem i {
   width: 20px;
   font-size: 14px;
-  color: #5a78b0;
+  color: var(--nav-subicon);
 }
 
 .nav-subitem.active {
@@ -336,12 +347,12 @@ function toggleSettings() {
 
 .nav-subitem:not(.active):hover {
   background: rgba(255, 255, 255, 0.04);
-  color: white;
+  color: var(--nav-hover-text);
 }
 
 .sidebar-footer {
   margin-top: 42px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--sidebar-footer-border);
   padding-top: 20px;
 }
 
@@ -349,13 +360,13 @@ function toggleSettings() {
   display: flex;
   align-items: center;
   gap: 14px;
-  color: #8aa0d7;
+  color: var(--sidebar-version-color);
   font-size: 14px;
 }
 
 .sidebar-version i {
   font-size: 20px;
-  color: #4f72b3;
+  color: var(--sidebar-version-icon);
 }
 
 .sidebar-user {
@@ -387,7 +398,7 @@ function toggleSettings() {
   display: block;
   font-size: 13px;
   font-weight: 600;
-  color: #e2e8f0;
+  color: var(--sidebar-user-name);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -396,14 +407,14 @@ function toggleSettings() {
 .sidebar-user__role {
   display: block;
   font-size: 11px;
-  color: #8aa0d7;
+  color: var(--sidebar-user-role);
 }
 
 .sidebar-logout {
   background: none;
   border: none;
   cursor: pointer;
-  color: #5a78b0;
+  color: var(--logout-color);
   font-size: 16px;
   padding: 6px;
   border-radius: 8px;
@@ -411,6 +422,19 @@ function toggleSettings() {
   align-items: center;
   transition: color 0.2s, background 0.2s;
   flex-shrink: 0;
+}
+
+.theme-toggle {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.theme-toggle i {
+  color: #1fbfb8;
 }
 
 .sidebar-logout:hover {

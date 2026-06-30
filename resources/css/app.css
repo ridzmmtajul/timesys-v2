@@ -1,5 +1,98 @@
 @import './libraries.css';
 
+/* ── Theme Variables ── */
+:root {
+  --app-bg:
+    radial-gradient(circle at top left, rgba(31, 191, 184, 0.16), transparent 28%),
+    radial-gradient(circle at top right, rgba(63, 109, 199, 0.2), transparent 32%),
+    linear-gradient(135deg, #071029 0%, #091737 45%, #0c1730 100%);
+  --main-bg:
+    radial-gradient(circle at top center, rgba(66, 113, 216, 0.14), transparent 35%),
+    linear-gradient(180deg, rgba(12, 21, 43, 0.72), rgba(8, 16, 34, 0.88));
+  --scrollbar-thumb: #b9d2e8;
+
+  --sidebar-bg: linear-gradient(180deg, rgba(8, 18, 44, 0.96) 0%, rgba(6, 14, 33, 0.98) 100%);
+  --sidebar-border: rgba(108, 143, 214, 0.15);
+  --sidebar-color: rgba(255, 255, 255, 0.8);
+  --brand-title: #ffffff;
+  --brand-subtitle: #8aa0d7;
+  --nav-text: #a9bce7;
+  --nav-icon: #728cc4;
+  --nav-hover-text: #ffffff;
+  --nav-subtext: #8aa0d7;
+  --nav-subicon: #5a78b0;
+  --sidebar-footer-border: rgba(255, 255, 255, 0.06);
+  --sidebar-user-name: #e2e8f0;
+  --sidebar-user-role: #8aa0d7;
+  --logout-color: #5a78b0;
+  --sidebar-version-color: #8aa0d7;
+  --sidebar-version-icon: #4f72b3;
+  --theme-btn-bg: rgba(255, 255, 255, 0.04);
+  --theme-btn-border: rgba(108, 143, 214, 0.15);
+  --nav-active-text: #ffffff;
+
+  --login-page-bg:
+    radial-gradient(circle at top left, rgba(31, 191, 184, 0.16), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(63, 109, 199, 0.2), transparent 32%),
+    linear-gradient(135deg, #071029 0%, #091737 45%, #0c1730 100%);
+  --login-card-bg: linear-gradient(160deg, #0e1c3a 0%, #0a1228 100%);
+  --login-card-border: rgba(108, 143, 214, 0.15);
+  --login-card-shadow: 0 24px 64px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(31, 191, 184, 0.06);
+  --login-title-color: #e2e8f0;
+  --login-label-color: #c8d6f0;
+  --login-icon-color: #5a78b0;
+  --login-input-bg: rgba(255, 255, 255, 0.04);
+  --login-input-border: rgba(108, 143, 214, 0.2);
+  --login-input-color: #e2e8f0;
+  --login-input-placeholder: #4a638f;
+  --login-input-focus-border: rgba(31, 191, 184, 0.5);
+  --login-input-focus-bg: rgba(31, 191, 184, 0.04);
+  --login-toggle-color: #5a78b0;
+  --login-toggle-hover: #8aa0d7;
+}
+
+html.light-mode {
+  --app-bg: #eef2f7;
+  --main-bg: #f5f7fa;
+  --scrollbar-thumb: #cbd5e1;
+
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e2e8f0;
+  --sidebar-color: #334155;
+  --brand-title: #0f172a;
+  --brand-subtitle: #64748b;
+  --nav-text: #475569;
+  --nav-icon: #94a3b8;
+  --nav-hover-text: #0f172a;
+  --nav-subtext: #64748b;
+  --nav-subicon: #94a3b8;
+  --sidebar-footer-border: #e2e8f0;
+  --sidebar-user-name: #0f172a;
+  --sidebar-user-role: #64748b;
+  --logout-color: #94a3b8;
+  --sidebar-version-color: #94a3b8;
+  --sidebar-version-icon: #cbd5e1;
+  --theme-btn-bg: #f1f5f9;
+  --theme-btn-border: #e2e8f0;
+  --nav-active-text: #1fbfb8;
+
+  --login-page-bg: #eef2f7;
+  --login-card-bg: #ffffff;
+  --login-card-border: #e2e8f0;
+  --login-card-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(31, 191, 184, 0.08);
+  --login-title-color: #0f172a;
+  --login-label-color: #334155;
+  --login-icon-color: #94a3b8;
+  --login-input-bg: #f8fafc;
+  --login-input-border: #e2e8f0;
+  --login-input-color: #0f172a;
+  --login-input-placeholder: #94a3b8;
+  --login-input-focus-border: rgba(31, 191, 184, 0.6);
+  --login-input-focus-bg: rgba(31, 191, 184, 0.04);
+  --login-toggle-color: #64748b;
+  --login-toggle-hover: #0f172a;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -8,9 +101,13 @@
 
 body {
   font-family: 'Inter', sans-serif;
-  background: #f2f7fc;
+  background: #071029;
   min-height: 100vh;
   overflow: hidden;
+}
+
+html.light-mode body {
+  background: #eef2f7;
 }
 
 /* ── SweetAlert2 — TimeSync Dark Theme ── */
@@ -173,4 +270,315 @@ body {
 
 .ts-swal-popup.swal2-toast .swal2-title {
   font-size: 13.5px !important;
+}
+
+/* ── Light Mode — SweetAlert2 overrides ── */
+html.light-mode .ts-swal-popup {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(31, 191, 184, 0.08) !important;
+}
+html.light-mode .ts-swal-title { color: #0f172a !important; }
+html.light-mode .ts-swal-text { color: #475569 !important; }
+html.light-mode .ts-swal-btn--cancel {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border: 1px solid #e2e8f0 !important;
+}
+html.light-mode .ts-swal-btn--cancel:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+html.light-mode .ts-swal-popup .swal2-success-circular-line-left,
+html.light-mode .ts-swal-popup .swal2-success-circular-line-right,
+html.light-mode .ts-swal-popup .swal2-success-fix {
+  background-color: #ffffff !important;
+}
+
+/* ── Light Mode — Biometric & Employee shared ── */
+html.light-mode .biometric-dashboard,
+html.light-mode .employee-dashboard { color: #0f172a !important; }
+html.light-mode .hero-kicker { color: #64748b !important; }
+html.light-mode .hero-title h2 { color: #0f172a !important; }
+
+html.light-mode .kpi-card {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04) !important;
+}
+html.light-mode .kpi-label { color: #64748b !important; }
+html.light-mode .kpi-card strong { color: #0f172a !important; }
+
+html.light-mode .view-toggle {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+html.light-mode .view-btn { color: #64748b !important; }
+
+html.light-mode .surface {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light-mode .add-form {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+html.light-mode .form-group label { color: #475569 !important; }
+html.light-mode .form-group input,
+html.light-mode .form-group select {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+html.light-mode .form-group select option {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html.light-mode .loading-state,
+html.light-mode .empty-state {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #64748b !important;
+}
+
+html.light-mode .device-card {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 14px rgba(0, 0, 0, 0.05) !important;
+}
+html.light-mode .device-card:hover {
+  border-color: rgba(31, 191, 184, 0.5) !important;
+  box-shadow: 0 4px 16px rgba(31, 191, 184, 0.12), 0 8px 28px rgba(0, 0, 0, 0.08) !important;
+}
+html.light-mode .card-period { color: #94a3b8 !important; }
+html.light-mode .device-name { color: #0f172a !important; }
+html.light-mode .device-meta,
+html.light-mode .device-meta span { color: #64748b !important; }
+html.light-mode .log-count { color: #64748b !important; }
+html.light-mode .device-stats { color: #64748b !important; }
+html.light-mode .device-stats strong { color: #0f172a !important; }
+html.light-mode .avatar-stack span { border-color: #ffffff !important; }
+
+html.light-mode .status-badge {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+}
+html.light-mode .status-badge.online,
+html.light-mode .status-active {
+  background: rgba(31, 191, 184, 0.12) !important;
+  color: #0d7a73 !important;
+}
+html.light-mode .status-badge.offline,
+html.light-mode .status-inactive {
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+}
+
+html.light-mode .action-menu-btn {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+}
+html.light-mode .device-action-menu {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+}
+html.light-mode .device-action-item { color: #0f172a !important; }
+html.light-mode .device-action-item i { color: #64748b !important; }
+html.light-mode .device-action-item:hover { background: #f8fafc !important; }
+
+html.light-mode .table-container { border-color: #e2e8f0 !important; }
+html.light-mode .device-table,
+html.light-mode .emp-table { background: #ffffff !important; }
+html.light-mode .device-table thead,
+html.light-mode .emp-table thead { background: #f8fafc !important; }
+html.light-mode .device-table th,
+html.light-mode .device-table td,
+html.light-mode .emp-table th,
+html.light-mode .emp-table td { border-color: #f1f5f9 !important; }
+html.light-mode .device-table th,
+html.light-mode .emp-table th { color: #64748b !important; }
+html.light-mode .device-table td,
+html.light-mode .emp-table td { color: #0f172a !important; }
+html.light-mode .device-table tbody tr:hover,
+html.light-mode .emp-table tbody tr:hover { background: rgba(31, 191, 184, 0.05) !important; }
+html.light-mode .empty-table { color: #64748b !important; }
+
+html.light-mode .recent-logs {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+html.light-mode .recent-logs > i { color: #94a3b8 !important; }
+html.light-mode .recent-avatars span { border-color: #f8fafc !important; }
+html.light-mode .footer-info { color: #64748b !important; }
+
+html.light-mode .emp-no { color: #1fbfb8 !important; }
+html.light-mode .emp-fullname { color: #0f172a !important; }
+
+html.light-mode .edit-btn {
+  background: rgba(63, 109, 199, 0.1) !important;
+  color: #3b6fd4 !important;
+}
+html.light-mode .edit-btn:hover { background: rgba(63, 109, 199, 0.2) !important; }
+
+html.light-mode .deactivate-btn {
+  background: rgba(220, 60, 60, 0.08) !important;
+  color: #dc2626 !important;
+}
+html.light-mode .deactivate-btn:hover { background: rgba(220, 60, 60, 0.16) !important; }
+
+html.light-mode .activate-btn {
+  background: rgba(31, 191, 184, 0.1) !important;
+  color: #0d7a73 !important;
+}
+html.light-mode .activate-btn:hover { background: rgba(31, 191, 184, 0.2) !important; }
+
+html.light-mode .calendar-btn {
+  background: rgba(139, 92, 246, 0.1) !important;
+  color: #7c3aed !important;
+}
+html.light-mode .calendar-btn:hover { background: rgba(139, 92, 246, 0.2) !important; }
+
+html.light-mode .search-wrap {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+html.light-mode .search-wrap i { color: #94a3b8 !important; }
+html.light-mode .search-wrap input { color: #0f172a !important; }
+html.light-mode .search-wrap input::placeholder { color: #94a3b8 !important; }
+
+html.light-mode .page-btn {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+html.light-mode .page-btn:not(:disabled):hover {
+  background: rgba(31, 191, 184, 0.08) !important;
+  color: #0d7a73 !important;
+  border-color: rgba(31, 191, 184, 0.35) !important;
+}
+html.light-mode .page-info { color: #64748b !important; }
+
+/* ── Light Mode — Schedule Calendar Modal ── */
+html.light-mode .sc-panel {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12) !important;
+}
+html.light-mode .sc-header { border-color: #f1f5f9 !important; }
+html.light-mode .sc-header__eyebrow { color: #64748b !important; }
+html.light-mode .sc-header__name { color: #0f172a !important; }
+html.light-mode .sc-header__empno { color: #1fbfb8 !important; }
+
+html.light-mode .sc-close-btn {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+html.light-mode .sc-close-btn:hover {
+  background: rgba(220, 60, 60, 0.08) !important;
+  color: #dc2626 !important;
+  border-color: rgba(220, 60, 60, 0.25) !important;
+}
+
+html.light-mode .sc-nav { border-color: #f1f5f9 !important; }
+html.light-mode .sc-nav__arrow,
+html.light-mode .sc-nav__today {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+html.light-mode .sc-nav__arrow:hover,
+html.light-mode .sc-nav__today:hover {
+  background: rgba(31, 191, 184, 0.1) !important;
+  color: #0d7a73 !important;
+  border-color: rgba(31, 191, 184, 0.35) !important;
+}
+html.light-mode .sc-nav__month { color: #0f172a !important; }
+html.light-mode .sc-loading { color: #64748b !important; }
+html.light-mode .sc-cell--head { color: #64748b !important; }
+
+html.light-mode .sc-cell--day {
+  background: #f8fafc !important;
+  border-color: #f1f5f9 !important;
+}
+html.light-mode .sc-cell--day:hover {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+html.light-mode .sc-cell--day.is-today {
+  background: rgba(31, 191, 184, 0.08) !important;
+  border-color: rgba(31, 191, 184, 0.4) !important;
+}
+html.light-mode .sc-day-num { color: #334155 !important; }
+html.light-mode .sc-cell--day.is-today .sc-day-num { color: #0d7a73 !important; }
+
+html.light-mode .sc-legend { border-color: #f1f5f9 !important; }
+html.light-mode .sc-legend-item {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+html.light-mode .sc-legend-label { color: #0f172a !important; }
+html.light-mode .sc-legend-range { color: #64748b !important; }
+html.light-mode .sc-empty { color: #64748b !important; }
+html.light-mode .sc-empty p { color: #334155 !important; }
+
+/* ── Light Mode — Schedule Detail Modal ── */
+html.light-mode .sd-modal {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12) !important;
+}
+html.light-mode .sd-modal__header { border-color: #f1f5f9 !important; }
+html.light-mode .sd-modal__type { color: #64748b !important; }
+html.light-mode .sd-modal__name { color: #0f172a !important; }
+html.light-mode .sd-modal__close {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+html.light-mode .sd-modal__close:hover {
+  background: rgba(220, 60, 60, 0.08) !important;
+  color: #dc2626 !important;
+  border-color: rgba(220, 60, 60, 0.25) !important;
+}
+html.light-mode .sd-section__title { color: #64748b !important; }
+html.light-mode .sd-field__label { color: #64748b !important; }
+html.light-mode .sd-field__value { color: #0f172a !important; }
+
+/* ── Light Mode — Employee / shared modals ── */
+html.light-mode .modal-overlay {
+  background: rgba(15, 23, 42, 0.4) !important;
+  backdrop-filter: blur(4px) !important;
+}
+html.light-mode .modal {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12) !important;
+}
+html.light-mode .modal-header { border-color: #f1f5f9 !important; }
+html.light-mode .modal-header h3 { color: #0f172a !important; }
+html.light-mode .modal-header h3 i { color: #1fbfb8 !important; }
+html.light-mode .modal-close {
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+}
+html.light-mode .modal-close:hover {
+  background: rgba(220, 60, 60, 0.08) !important;
+  color: #dc2626 !important;
+}
+html.light-mode .modal-footer { border-color: #f1f5f9 !important; }
+html.light-mode .btn-cancel {
+  border-color: #e2e8f0 !important;
+  background: #f8fafc !important;
+  color: #475569 !important;
+}
+html.light-mode .btn-cancel:hover:not(:disabled) {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
 }

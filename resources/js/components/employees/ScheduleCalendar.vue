@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue';
 import axios from 'axios';
 import WorkScheduleForm from '../work-schedules/Form/Create.vue';
+import useTheme from '../../composables/useTheme.js';
 
 const props = defineProps({
   show:     { type: Boolean, default: false },
@@ -14,18 +15,29 @@ const workSchedules   = ref([]);
 const loading         = ref(false);
 const currentDate     = ref(new Date());
 const showAddForm     = ref(false);
-const editingSchedule = ref({});
+const editingSchedule   = ref({});
+const selectedSchedule  = ref(null);
 
 const DAY_NAMES    = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const MONTH_NAMES  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const WEEK_HEADERS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-const COLORS = [
+const { isDark } = useTheme();
+
+const DARK_COLORS = [
   { bg: 'rgba(31,191,184,0.18)',  text: '#52d3d0', border: 'rgba(31,191,184,0.4)'  },
   { bg: 'rgba(63,109,199,0.2)',   text: '#7db3f8', border: 'rgba(63,109,199,0.45)' },
   { bg: 'rgba(160,90,220,0.18)',  text: '#c589f5', border: 'rgba(160,90,220,0.4)'  },
   { bg: 'rgba(255,170,60,0.18)',  text: '#ffc46b', border: 'rgba(255,170,60,0.4)'  },
-  { bg: 'rgba(80,200,100,0.18)', text: '#6dd98a', border: 'rgba(80,200,100,0.4)'  },
+  { bg: 'rgba(80,200,100,0.18)',  text: '#6dd98a', border: 'rgba(80,200,100,0.4)'  },
+];
+
+const LIGHT_COLORS = [
+  { bg: 'rgba(31,191,184,0.22)',  text: '#0a6b66', border: 'rgba(31,191,184,0.5)'  },
+  { bg: 'rgba(63,109,199,0.2)',   text: '#1a4fa8', border: 'rgba(63,109,199,0.48)' },
+  { bg: 'rgba(140,60,210,0.18)',  text: '#5a0faa', border: 'rgba(140,60,210,0.42)' },
+  { bg: 'rgba(200,120,20,0.18)',  text: '#8a4a00', border: 'rgba(200,120,20,0.42)' },
+  { bg: 'rgba(40,160,70,0.18)',   text: '#145a28', border: 'rgba(40,160,70,0.42)'  },
 ];
 
 function fullName(emp) {
@@ -43,6 +55,25 @@ function toDateStr(d) {
 function fmtTime(t) {
   return t ? t.substring(0,5) : null;
 }
+
+function fmtScheduleTimes(ws) {
+  const parts = [];
+  if (ws.timein_AM && ws.timeout_AM) parts.push(`${fmtTime(ws.timein_AM)}–${fmtTime(ws.timeout_AM)}`);
+  if (ws.timein_PM && ws.timeout_PM) parts.push(`${fmtTime(ws.timein_PM)}–${fmtTime(ws.timeout_PM)}`);
+  return parts.join(' / ');
+}
+
+function scheduleName(ws) {
+  if (!ws.is_others && ws.schedule?.name) return ws.schedule.name;
+  if (ws.schedule_type?.name) return ws.schedule_type.name;
+  return ws.schedule_for.replace(/_/g, ' ');
+}
+
+const SCHEDULE_FOR_LABEL = {
+  day_in_week:    'Day in a Week',
+  inclusive_date: 'Inclusive Date',
+  everyday:       'Everyday',
+};
 
 async function fetchSchedules() {
   if (!props.employee) return;
@@ -89,13 +120,28 @@ const monthLabel = computed(() =>
 );
 
 function getSchedulesForDate(dateStr, dow) {
-  return workSchedules.value.filter(ws => {
-    const inRange = (!ws.from_date || dateStr >= ws.from_date) &&
-                    (!ws.to_date   || dateStr <= ws.to_date);
-    if (!inRange) return false;
-    if (!ws.days || ws.days.length === 0) return true;
-    return ws.days.includes(DAY_NAMES[dow]);
-  });
+  const all = workSchedules.value;
+  const inRange = ws => (!ws.from_date || dateStr >= ws.from_date) &&
+                        (!ws.to_date   || dateStr <= ws.to_date);
+
+  // Priority 1: day_in_week
+  const dayInWeek = all.filter(ws =>
+    ws.schedule_for === 'day_in_week' && inRange(ws) &&
+    ws.days && ws.days.includes(DAY_NAMES[dow])
+  );
+  if (dayInWeek.length) return [dayInWeek[0]];
+
+  // Priority 2: inclusive_date
+  const inclusiveDate = all.filter(ws =>
+    ws.schedule_for === 'inclusive_date' && inRange(ws)
+  );
+  if (inclusiveDate.length) return [inclusiveDate[0]];
+
+  // Priority 3: everyday
+  const everyday = all.filter(ws =>
+    ws.schedule_for === 'everyday' && inRange(ws)
+  );
+  return everyday.length ? [everyday[0]] : [];
 }
 
 const calendarDays = computed(() => {
@@ -126,7 +172,8 @@ const calendarDays = computed(() => {
 
 const colorMap = computed(() => {
   const m = {};
-  workSchedules.value.forEach((ws, i) => { m[ws.id] = COLORS[i % COLORS.length]; });
+  const palette = isDark.value ? DARK_COLORS : LIGHT_COLORS;
+  workSchedules.value.forEach((ws, i) => { m[ws.id] = palette[i % palette.length]; });
   return m;
 });
 
@@ -210,20 +257,19 @@ async function onReload() {
                   <span class="sc-day-num">{{ d.day }}</span>
                   <div class="sc-events">
                     <div
-                      v-for="ws in d.schedules.slice(0, 2)"
+                      v-for="ws in d.schedules"
                       :key="ws.id"
                       class="sc-event"
                       :style="{
                         background:   colorMap[ws.id]?.bg,
                         color:        colorMap[ws.id]?.text,
                         borderColor:  colorMap[ws.id]?.border,
+                        cursor:       'pointer',
                       }"
-                      :title="`${ws.schedule_for}${fmtTime(ws.timein_AM) ? '\n' + fmtTime(ws.timein_AM) + ' – ' + (fmtTime(ws.timeout_PM) || fmtTime(ws.timeout_AM) || '') : ''}`"
+                      @click.stop="selectedSchedule = ws"
                     >
-                      {{ ws.schedule_for }}
-                    </div>
-                    <div v-if="d.schedules.length > 2" class="sc-event sc-event--more">
-                      +{{ d.schedules.length - 2 }} more
+                      <span class="sc-event__name">{{ scheduleName(ws) }}</span>
+                      <span v-if="fmtScheduleTimes(ws)" class="sc-event__time">{{ fmtScheduleTimes(ws) }}</span>
                     </div>
                   </div>
                 </div>
@@ -239,7 +285,7 @@ async function onReload() {
                 :style="{ borderColor: colorMap[ws.id]?.border }"
               >
                 <span class="sc-legend-dot" :style="{ background: colorMap[ws.id]?.text }"></span>
-                <span class="sc-legend-label">{{ ws.schedule_for }}</span>
+                <span class="sc-legend-label">{{ scheduleName(ws) }}</span>
                 <span class="sc-legend-range">
                   {{ ws.from_date || 'open' }} → {{ ws.to_date || 'open' }}
                 </span>
@@ -268,6 +314,75 @@ async function onReload() {
     @input="onFormInput"
     @reloadWorkSchedules="onReload"
   />
+
+  <!-- Schedule Detail Modal -->
+  <Teleport to="body">
+    <Transition name="sd-fade">
+      <div v-if="selectedSchedule" class="sd-overlay" @mousedown.self="selectedSchedule = null">
+        <div class="sd-modal">
+          <div class="sd-modal__header">
+            <div class="sd-modal__icon" :style="{ background: colorMap[selectedSchedule.id]?.bg, borderColor: colorMap[selectedSchedule.id]?.border }">
+              <i class="fas fa-clock" :style="{ color: colorMap[selectedSchedule.id]?.text }"></i>
+            </div>
+            <div>
+              <p class="sd-modal__type">{{ SCHEDULE_FOR_LABEL[selectedSchedule.schedule_for] ?? selectedSchedule.schedule_for }}</p>
+              <h5 class="sd-modal__name">{{ scheduleName(selectedSchedule) }}</h5>
+            </div>
+            <button class="sd-modal__close" @click="selectedSchedule = null"><i class="fas fa-times"></i></button>
+          </div>
+
+          <div class="sd-modal__body">
+            <!-- Date / Days coverage -->
+            <div class="sd-section">
+              <p class="sd-section__title">Coverage</p>
+              <div class="sd-grid">
+                <div class="sd-field" v-if="selectedSchedule.schedule_for === 'day_in_week'">
+                  <span class="sd-field__label">Days</span>
+                  <div class="sd-chips">
+                    <span v-for="d in selectedSchedule.days" :key="d" class="sd-chip">{{ d }}</span>
+                  </div>
+                </div>
+                <div class="sd-field" v-if="selectedSchedule.from_date || selectedSchedule.to_date">
+                  <span class="sd-field__label">Date Range</span>
+                  <span class="sd-field__value">{{ selectedSchedule.from_date || '—' }} → {{ selectedSchedule.to_date || 'ongoing' }}</span>
+                </div>
+                <div class="sd-field" v-if="selectedSchedule.schedule_for === 'everyday' && !selectedSchedule.from_date && !selectedSchedule.to_date">
+                  <span class="sd-field__label">Applies to</span>
+                  <span class="sd-field__value">All days</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Times -->
+            <div class="sd-section">
+              <p class="sd-section__title">Time</p>
+              <div class="sd-grid sd-grid--4">
+                <div class="sd-field">
+                  <span class="sd-field__label">Time In AM</span>
+                  <span class="sd-field__value">{{ fmtTime(selectedSchedule.timein_AM) || '—' }}</span>
+                </div>
+                <div class="sd-field">
+                  <span class="sd-field__label">Time Out AM</span>
+                  <span class="sd-field__value">{{ fmtTime(selectedSchedule.timeout_AM) || '—' }}</span>
+                </div>
+                <div class="sd-field">
+                  <span class="sd-field__label">Time In PM</span>
+                  <span class="sd-field__value">{{ fmtTime(selectedSchedule.timein_PM) || '—' }}</span>
+                </div>
+                <div class="sd-field">
+                  <span class="sd-field__label">Time Out PM</span>
+                  <span class="sd-field__value">{{ fmtTime(selectedSchedule.timeout_PM) || '—' }}</span>
+                </div>
+              </div>
+              <div v-if="selectedSchedule.no_lunch_gap" class="sd-badge">
+                <i class="fas fa-check-circle"></i> No Lunch Break
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -547,14 +662,31 @@ async function onReload() {
 .sc-event {
   font-size: 10px;
   font-weight: 600;
-  padding: 2px 6px;
+  padding: 3px 6px;
   border-radius: 5px;
   border: 1px solid transparent;
+  overflow: hidden;
+  cursor: default;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sc-event__name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: default;
-  line-height: 1.4;
+}
+
+.sc-event__time {
+  font-size: 9px;
+  font-weight: 500;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.01em;
 }
 
 .sc-event--more {
@@ -649,5 +781,175 @@ async function onReload() {
 }
 .sc-fade-enter-from .sc-panel {
   transform: translateY(16px);
+}
+
+/* ── Schedule Detail Modal ── */
+.sd-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background: rgba(2,8,22,0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.sd-modal {
+  width: 100%;
+  max-width: 480px;
+  border-radius: 18px;
+  background: rgba(10,18,42,0.99);
+  border: 1px solid rgba(121,146,207,0.2);
+  box-shadow: 0 28px 70px rgba(1,6,20,0.6);
+  overflow: hidden;
+}
+
+.sd-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid rgba(121,146,207,0.12);
+  position: relative;
+}
+
+.sd-modal__icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.sd-modal__type {
+  font-size: 11px;
+  color: #6a84bf;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 3px;
+}
+
+.sd-modal__name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #f3f7ff;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.sd-modal__close {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid rgba(121,146,207,0.2);
+  background: rgba(17,27,56,0.8);
+  color: #9bb0da;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sd-modal__close:hover {
+  background: rgba(220,60,60,0.18);
+  color: #f08080;
+  border-color: rgba(220,60,60,0.3);
+}
+
+.sd-modal__body {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sd-section__title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6a84bf;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 10px;
+}
+
+.sd-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.sd-grid--4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.sd-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sd-field__label {
+  font-size: 10px;
+  color: #6a84bf;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sd-field__value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #edf5ff;
+}
+
+.sd-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  grid-column: 1 / -1;
+}
+
+.sd-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(31,191,184,0.12);
+  border: 1px solid rgba(31,191,184,0.28);
+  color: #52d3d0;
+}
+
+.sd-badge {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6dd98a;
+  background: rgba(80,200,100,0.1);
+  border: 1px solid rgba(80,200,100,0.25);
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
+.sd-fade-enter-active, .sd-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+.sd-fade-enter-active .sd-modal, .sd-fade-leave-active .sd-modal {
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+.sd-fade-enter-from, .sd-fade-leave-to {
+  opacity: 0;
+}
+.sd-fade-enter-from .sd-modal {
+  transform: scale(0.96) translateY(10px);
 }
 </style>
