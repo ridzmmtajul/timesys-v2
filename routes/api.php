@@ -20,6 +20,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\WorkScheduleController;
 use App\Http\Controllers\WorkTimeRuleController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\DtrController;
 use App\Http\Controllers\SyncController;
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -120,6 +121,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/titles/{id}', [TitleController::class, 'destroy']);
 
     Route::get('/reports/employee-list', [ReportController::class, 'employeeList']);
+
+    Route::get('/dtr/options', [DtrController::class, 'options']);
+    Route::post('/dtr/generate', [DtrController::class, 'generate']);
+    Route::post('/dtr/pdf', [DtrController::class, 'pdf']);
 
     // Sync push — Sanctum-protected, called from local instance UI
     Route::post('/sync/push-employees', [SyncController::class, 'pushEmployees']);

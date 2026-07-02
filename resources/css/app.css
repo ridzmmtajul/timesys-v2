@@ -111,6 +111,10 @@ html.light-mode body {
 }
 
 /* ── SweetAlert2 — TimeSync Dark Theme ── */
+.swal2-container {
+  z-index: 2000 !important;
+}
+
 .swal2-backdrop-show {
   background: rgba(6, 14, 33, 0.78) !important;
   backdrop-filter: blur(4px) !important;

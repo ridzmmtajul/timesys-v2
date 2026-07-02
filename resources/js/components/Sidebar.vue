@@ -26,7 +26,7 @@ const logoUrl = '/images/logo.png';
 const navItems = [
   { path: '/biometric', label: 'Biometrics', icon: 'mdi mdi-chip' },
   { path: '/employees', label: 'Employees', icon: 'mdi mdi-account-group' },
-  { path: '/work-schedules', label: 'Daily Time Record', icon: 'mdi mdi-calendar-account' },
+  { path: '/reports/dtr', label: 'Daily Time Record', icon: 'mdi mdi-calendar-account' },
   { path: '/reports/employees', label: 'Reports', icon: 'mdi mdi-file-chart-outline' },
 ];
 

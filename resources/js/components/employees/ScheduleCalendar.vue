@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import axios from 'axios';
 import WorkScheduleForm from '../work-schedules/Form/Create.vue';
 import useTheme from '../../composables/useTheme.js';
+import ThemeSwal, { swalClass } from '../../utils/swal.js';
 
 const props = defineProps({
   show:     { type: Boolean, default: false },
@@ -191,6 +192,33 @@ async function onReload() {
   await fetchSchedules();
   editingSchedule.value = {};
 }
+
+function deleteSchedule(ws) {
+  ThemeSwal.fire({
+    title: 'Are you sure?',
+    text: "You won't be able to revert this!",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Yes, delete it!',
+    customClass: {
+      ...swalClass,
+      confirmButton: 'ts-swal-btn ts-swal-btn--danger',
+    },
+  }).then((result) => {
+    if (result.value) {
+      axios
+        .delete(`/api/work-schedules/${ws.id}`)
+        .then(async (response) => {
+          selectedSchedule.value = null;
+          await fetchSchedules();
+          ThemeSwal.fire({ title: 'Deleted', text: response.data.message, icon: 'success' });
+        })
+        .catch(() => {
+          ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: 'Something went wrong!' });
+        });
+    }
+  });
+}
 </script>
 
 <template>
@@ -328,6 +356,9 @@ async function onReload() {
               <p class="sd-modal__type">{{ SCHEDULE_FOR_LABEL[selectedSchedule.schedule_for] ?? selectedSchedule.schedule_for }}</p>
               <h5 class="sd-modal__name">{{ scheduleName(selectedSchedule) }}</h5>
             </div>
+            <button class="sd-modal__delete" @click="deleteSchedule(selectedSchedule)" title="Delete Schedule">
+              <i class="fas fa-trash-alt"></i>
+            </button>
             <button class="sd-modal__close" @click="selectedSchedule = null"><i class="fas fa-times"></i></button>
           </div>
 
@@ -842,8 +873,29 @@ async function onReload() {
   margin: 0;
 }
 
-.sd-modal__close {
+.sd-modal__delete {
   margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid rgba(220,60,60,0.25);
+  background: rgba(220,60,60,0.1);
+  color: #f08080;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sd-modal__delete:hover {
+  background: rgba(220,60,60,0.22);
+  color: #ff9a9a;
+  border-color: rgba(220,60,60,0.4);
+}
+
+.sd-modal__close {
   width: 32px;
   height: 32px;
   border-radius: 9px;

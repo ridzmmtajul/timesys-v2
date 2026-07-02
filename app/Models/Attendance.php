@@ -2,14 +2,33 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Attendance extends Model
 {
-     protected $fillable = [
+    use HasFactory;
+
+    protected $fillable = [
+        'check_time',
         'employee_id',
-        'employee_name',
-        'timestamp',
-        'status'
+        'serial_no',
+        'post_no',
+        'void',
     ];
+
+    protected $casts = [
+        'check_time' => 'datetime',
+        'void' => 'boolean',
+    ];
+
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class);
+    }
+
+    public function postNumber()
+    {
+        return $this->belongsTo(PostNumber::class, 'post_no');
+    }
 }

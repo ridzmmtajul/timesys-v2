@@ -1,0 +1,151 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        DB::statement("
+            CREATE OR REPLACE VIEW attendance_undertime_view AS
+            WITH matched_schedules AS (
+                SELECT
+                    a.employee_id, a.date,
+                    a.post1_time, a.post2_time, a.post3_time, a.post4_time,
+                    ws.id            AS schedule_id,
+                    ws.timein_AM, ws.timeout_AM, ws.timein_PM, ws.timeout_PM,
+                    ws.no_lunch_gap,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY a.employee_id, a.date
+                        ORDER BY CASE ws.schedule_for
+                            WHEN 'day_in_week'     THEN 1
+                            WHEN 'inclusive_date'  THEN 2
+                            WHEN 'everyday'        THEN 3
+                            ELSE 4
+                        END
+                    ) AS rn
+                FROM attendance_daily_view a
+                JOIN work_schedules ws
+                    ON  ws.employee_id = a.employee_id
+                    AND ws.deleted_at IS NULL
+                    AND (
+                        ws.schedule_for = 'everyday'
+                        OR (ws.schedule_for = 'day_in_week'    AND JSON_CONTAINS(ws.days, JSON_QUOTE(DAYNAME(a.date))))
+                        OR (ws.schedule_for = 'inclusive_date' AND a.date BETWEEN ws.from_date AND ws.to_date)
+                    )
+            ),
+            resolved AS (
+                SELECT * FROM matched_schedules WHERE rn = 1
+            ),
+            grace AS (
+                SELECT
+                    e.id AS employee_id,
+                    COALESCE(
+                        (SELECT wtr.time FROM work_time_rules wtr WHERE wtr.rule = 'Grace Period' AND wtr.offices  = e.office_id LIMIT 1),
+                        (SELECT wtr.time FROM work_time_rules wtr WHERE wtr.rule = 'Grace Period' AND wtr.offices IS NULL        LIMIT 1),
+                        15
+                    ) AS grace_minutes
+                FROM employees e
+            )
+            SELECT
+                r.employee_id,
+                r.date,
+                r.timein_AM         AS sched_timein_AM,
+                r.post1_time        AS actual_timein_AM,
+                r.timeout_AM        AS sched_timeout_AM,
+                r.post2_time        AS actual_timeout_AM,
+                r.timein_PM         AS sched_timein_PM,
+                r.post3_time        AS actual_timein_PM,
+                r.timeout_PM        AS sched_timeout_PM,
+                r.post4_time        AS actual_timeout_PM,
+                g.grace_minutes,
+                GREATEST((COALESCE(TIMESTAMPDIFF(MINUTE, r.timein_AM,  r.post1_time), 0) - g.grace_minutes), 0)  AS late_minutes_AM,
+                GREATEST( COALESCE(TIMESTAMPDIFF(MINUTE, r.post2_time, r.timeout_AM), 0),                    0)  AS undertime_lunch_out_minutes,
+                GREATEST((COALESCE(TIMESTAMPDIFF(MINUTE, r.timein_PM,  r.post3_time), 0) - g.grace_minutes), 0)  AS late_minutes_PM,
+                GREATEST( COALESCE(TIMESTAMPDIFF(MINUTE, r.post4_time, r.timeout_PM), 0),                    0)  AS undertime_end_of_day_minutes,
+                CASE WHEN r.no_lunch_gap = 1 THEN 0
+                     ELSE (
+                         GREATEST((COALESCE(TIMESTAMPDIFF(MINUTE, r.timein_AM,  r.post1_time), 0) - g.grace_minutes), 0)
+                       + GREATEST( COALESCE(TIMESTAMPDIFF(MINUTE, r.post2_time, r.timeout_AM), 0),                    0)
+                       + GREATEST((COALESCE(TIMESTAMPDIFF(MINUTE, r.timein_PM,  r.post3_time), 0) - g.grace_minutes), 0)
+                       + GREATEST( COALESCE(TIMESTAMPDIFF(MINUTE, r.post4_time, r.timeout_PM), 0),                    0)
+                     )
+                END AS total_undertime_minutes
+            FROM resolved r
+            LEFT JOIN grace g ON g.employee_id = r.employee_id
+        ");
+    }
+
+    public function down(): void
+    {
+        DB::statement("
+            CREATE OR REPLACE VIEW attendance_undertime_view AS
+            WITH matched_schedules AS (
+                SELECT
+                    a.employee_id, a.date,
+                    a.post1_time, a.post2_time, a.post3_time, a.post4_time,
+                    ws.id            AS schedule_id,
+                    ws.timein_AM, ws.timeout_AM, ws.timein_PM, ws.timeout_PM,
+                    ws.no_lunch_gap,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY a.employee_id, a.date
+                        ORDER BY CASE ws.schedule_for
+                            WHEN 'day_in_week'     THEN 1
+                            WHEN 'inclusive_date'  THEN 2
+                            WHEN 'everyday'        THEN 3
+                            ELSE 4
+                        END
+                    ) AS rn
+                FROM attendance_daily_view a
+                JOIN work_schedules ws
+                    ON  ws.employee_id = a.employee_id
+                    AND ws.deleted_at IS NULL
+                    AND (
+                        ws.schedule_for = 'everyday'
+                        OR (ws.schedule_for = 'day_in_week'    AND JSON_CONTAINS(ws.days, JSON_QUOTE(DAYNAME(a.date))))
+                        OR (ws.schedule_for = 'inclusive_date' AND a.date BETWEEN ws.from_date AND ws.to_date)
+                    )
+            ),
+            resolved AS (
+                SELECT * FROM matched_schedules WHERE rn = 1
+            ),
+            grace AS (
+                SELECT
+                    e.id AS employee_id,
+                    COALESCE(
+                        (SELECT wtr.time FROM work_time_rules wtr WHERE wtr.rule = 'Grace Period' AND wtr.offices  = e.office_id LIMIT 1),
+                        (SELECT wtr.time FROM work_time_rules wtr WHERE wtr.rule = 'Grace Period' AND wtr.offices IS NULL        LIMIT 1),
+                        15
+                    ) AS grace_minutes
+                FROM employees e
+            )
+            SELECT
+                r.employee_id,
+                r.date,
+                r.timein_AM         AS sched_timein_AM,
+                r.post1_time        AS actual_timein_AM,
+                r.timeout_AM        AS sched_timeout_AM,
+                r.post2_time        AS actual_timeout_AM,
+                r.timein_PM         AS sched_timein_PM,
+                r.post3_time        AS actual_timein_PM,
+                r.timeout_PM        AS sched_timeout_PM,
+                r.post4_time        AS actual_timeout_PM,
+                g.grace_minutes,
+                GREATEST((TIMESTAMPDIFF(MINUTE, r.timein_AM,  r.post1_time) - g.grace_minutes), 0)  AS late_minutes_AM,
+                GREATEST( TIMESTAMPDIFF(MINUTE, r.post2_time, r.timeout_AM),                    0)  AS undertime_lunch_out_minutes,
+                GREATEST((TIMESTAMPDIFF(MINUTE, r.timein_PM,  r.post3_time) - g.grace_minutes), 0)  AS late_minutes_PM,
+                GREATEST( TIMESTAMPDIFF(MINUTE, r.post4_time, r.timeout_PM),                    0)  AS undertime_end_of_day_minutes,
+                CASE WHEN r.no_lunch_gap = 1 THEN 0
+                     ELSE (
+                         GREATEST((TIMESTAMPDIFF(MINUTE, r.timein_AM,  r.post1_time) - g.grace_minutes), 0)
+                       + GREATEST( TIMESTAMPDIFF(MINUTE, r.post2_time, r.timeout_AM),                    0)
+                       + GREATEST((TIMESTAMPDIFF(MINUTE, r.timein_PM,  r.post3_time) - g.grace_minutes), 0)
+                       + GREATEST( TIMESTAMPDIFF(MINUTE, r.post4_time, r.timeout_PM),                    0)
+                     )
+                END AS total_undertime_minutes
+            FROM resolved r
+            LEFT JOIN grace g ON g.employee_id = r.employee_id
+        ");
+    }
+};
