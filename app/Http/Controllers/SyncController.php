@@ -127,12 +127,15 @@ class SyncController extends Controller
 
     public function pendingCounts()
     {
+        $isCentral = !config('services.sync.central_url');
+
         return response()->json([
-            'employees'        => Employee::whereNull('synced_at')->count(),
+            'is_central'       => $isCentral,
+            'employees'        => $isCentral ? Employee::count() : Employee::whereNull('synced_at')->count(),
             'offices'          => Office::whereNull('synced_at')->count(),
             'office_divisions' => OfficeDivision::whereNull('synced_at')->count(),
             'work_schedules'   => WorkSchedule::whereNull('synced_at')->count(),
-            'attendances'      => Attendance::whereNull('synced_at')->count(),
+            'attendances'      => $isCentral ? Attendance::count() : Attendance::whereNull('synced_at')->count(),
         ]);
     }
 

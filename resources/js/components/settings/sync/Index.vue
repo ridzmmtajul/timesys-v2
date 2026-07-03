@@ -2,7 +2,7 @@
 import { onMounted } from 'vue';
 import useSync, { SYNC_MODULES } from '../../../composables/sync.js';
 
-const { pendingCounts, logs, pagination, is_loading, syncingAll, getPendingCounts, getLogs, pushAll } = useSync();
+const { pendingCounts, logs, pagination, is_loading, syncingAll, is_central, getPendingCounts, getLogs, pushAll } = useSync();
 
 function formatDate(value) {
     if (!value) return '—';
@@ -42,7 +42,7 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <button class="btn-primary" :disabled="syncingAll" @click="pushAll">
+                <button v-if="!is_central" class="btn-primary" :disabled="syncingAll" @click="pushAll">
                     <v-icon :icon="syncingAll ? 'mdi-loading mdi-spin' : 'mdi-cloud-upload-outline'" size="15" />
                     {{ syncingAll ? 'Syncing...' : 'Sync All' }}
                 </button>
@@ -89,7 +89,8 @@ onMounted(() => {
                             <td colspan="8" class="empty-table">
                                 <v-icon icon="mdi-cloud-off-outline" size="30" />
                                 <p>No sync activity yet</p>
-                                <span>Click "Sync All" to send local records to the central server</span>
+                                <span v-if="!is_central">Click "Sync All" to send local records to the central server</span>
+                                <span v-else>Waiting for local instances to push records</span>
                             </td>
                         </tr>
                     </tbody>
