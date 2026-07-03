@@ -58,6 +58,7 @@ export default function useSync() {
                 icon: hasIssues ? 'warning' : 'success',
                 title: hasIssues ? 'Sync Completed with Issues' : 'Sync Complete',
                 html: `
+<<<<<<< HEAD
                     <div class="sync-summary">
                         ${results.map((r) => `
                             <div class="sync-summary__row">
@@ -77,6 +78,17 @@ export default function useSync() {
                             <strong>${totalSynced}</strong> synced &nbsp;·&nbsp; <strong>${totalExisting}</strong> existing &nbsp;·&nbsp; <strong>${totalSkipped}</strong> skipped
                         </div>
                     </div>
+=======
+                    <ul style="text-align:left;margin-top:4px;">
+                        ${results.map((r) => `
+                            <li style="margin-bottom:6px;">
+                                <strong>${r.mod.label}:</strong>
+                                ${r.error ? `<span style="color:#f08080">${r.error}</span>` : `${r.data.synced} synced, ${r.data.existing} existing, ${r.data.skipped} skipped`}
+                            </li>
+                        `).join('')}
+                    </ul>
+                    <p style="margin-top:8px;"><strong>${totalSynced}</strong> total record(s) synced.</p>
+>>>>>>> 6a6a31f646e6ea6006e2e3a8003e5a4d5594bceb
                 `,
             });
 
