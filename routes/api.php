@@ -25,9 +25,14 @@ use App\Http\Controllers\SyncController;
 
 Route::post('/login', [AuthController::class, 'login']);
 
-// Sync receiver — API key auth, no Sanctum (server-to-server)
-Route::post('/sync/receive-employees', [SyncController::class, 'receiveEmployees'])
-    ->middleware('sync.api_key');
+// Sync receivers — API key auth, no Sanctum (server-to-server)
+Route::middleware('sync.api_key')->group(function () {
+    Route::post('/sync/receive-employees', [SyncController::class, 'receiveEmployees']);
+    Route::post('/sync/receive-offices', [SyncController::class, 'receiveOffices']);
+    Route::post('/sync/receive-office-divisions', [SyncController::class, 'receiveOfficeDivisions']);
+    Route::post('/sync/receive-work-schedules', [SyncController::class, 'receiveWorkSchedules']);
+    Route::post('/sync/receive-attendances', [SyncController::class, 'receiveAttendances']);
+});
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', fn (Request $request) => $request->user());
@@ -129,6 +134,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Sync push — Sanctum-protected, called from local instance UI
     Route::post('/sync/push-employees', [SyncController::class, 'pushEmployees']);
+    Route::post('/sync/push-offices', [SyncController::class, 'pushOffices']);
+    Route::post('/sync/push-office-divisions', [SyncController::class, 'pushOfficeDivisions']);
+    Route::post('/sync/push-work-schedules', [SyncController::class, 'pushWorkSchedules']);
+    Route::post('/sync/push-attendances', [SyncController::class, 'pushAttendances']);
+    Route::get('/sync/pending-counts', [SyncController::class, 'pendingCounts']);
+    Route::get('/sync/logs', [SyncController::class, 'logs']);
 
     Route::get('/employees/options', [EmployeeController::class, 'options']);
     Route::get('/employees', [EmployeeController::class, 'index']);

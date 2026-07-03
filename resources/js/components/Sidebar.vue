@@ -28,6 +28,7 @@ const navItems = [
   { path: '/employees', label: 'Employees', icon: 'mdi mdi-account-group' },
   { path: '/reports/dtr', label: 'Daily Time Record', icon: 'mdi mdi-calendar-account' },
   { path: '/reports/employees', label: 'Reports', icon: 'mdi mdi-file-chart-outline' },
+  { path: '/data-sync', label: 'Data Sync', icon: 'mdi mdi-cloud-sync-outline' },
 ];
 
 const librariesItems = [
@@ -350,7 +351,6 @@ function toggleSettings() {
 }
 
 .sidebar-footer {
-  margin-top: 42px;
   border-top: 1px solid var(--sidebar-footer-border);
   padding-top: 20px;
 }
