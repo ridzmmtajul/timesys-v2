@@ -57,7 +57,7 @@ class EmployeeController extends Controller
                 'offices'          => Office::orderBy('name')->get(['id', 'name', 'prefix', 'latest_employee_no']),
                 'employment_types' => EmploymentType::orderBy('name')->get(['id', 'name']),
                 'positions'        => Position::orderBy('name')->get(['id', 'name']),
-                'office_divisions' => OfficeDivision::orderBy('name')->get(['id', 'name']),
+                'office_divisions' => OfficeDivision::orderBy('name')->get(['id', 'name', 'office_id']),
             ],
         ]);
     }

@@ -190,10 +190,16 @@ async function syncToServer() {
   syncing.value = true;
   try {
     const { data } = await axios.post('/api/sync/push-employees');
+    const hasErrors = Array.isArray(data.errors) && data.errors.length > 0;
     ThemeSwal.fire({
-      icon: 'success',
-      title: 'Sync Complete',
-      html: `<p><strong>${data.synced}</strong> employee(s) synced to central server.</p>${data.skipped ? `<p style="color:#f08080">${data.skipped} skipped.</p>` : ''}`,
+      icon: hasErrors ? 'warning' : 'success',
+      title: hasErrors ? 'Sync Completed with Issues' : 'Sync Complete',
+      html: `
+        <p><strong>${data.synced}</strong> employee(s) synced to central server.</p>
+        ${data.existing ? `<p>${data.existing} employee(s) already exist.</p>` : ''}
+        ${data.skipped ? `<p style="color:#f08080">${data.skipped} skipped.</p>` : ''}
+        ${hasErrors ? `<ul style="text-align:left;color:#f08080;margin-top:8px;">${data.errors.map(e => `<li>${e}</li>`).join('')}</ul>` : ''}
+      `,
     });
   } catch (error) {
     ThemeSwal.fire({

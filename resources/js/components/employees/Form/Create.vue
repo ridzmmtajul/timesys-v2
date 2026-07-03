@@ -32,6 +32,10 @@ const form = ref({ ...BLANK_FORM });
 
 const isEditing = computed(() => !!props.employee);
 
+const filteredOfficeDivisions = computed(() =>
+  props.options.office_divisions.filter(d => d.office_id === form.value.office_id)
+);
+
 watch(() => props.show, (val) => {
   if (val && !props.employee) {
     form.value = { ...BLANK_FORM };
@@ -62,6 +66,10 @@ watch(() => props.employee, (emp) => {
 });
 
 watch(() => form.value.office_id, (officeId) => {
+  if (!filteredOfficeDivisions.value.some(d => d.id === form.value.office_division_id)) {
+    form.value.office_division_id = '';
+  }
+
   if (isEditing.value) return;
   const office = props.options.offices.find(o => o.id === officeId);
   if (!office) { form.value.employee_no = ''; return; }
@@ -123,9 +131,9 @@ function handleSave() {
           </div>
           <div class="form-group">
             <label>Office Division</label>
-            <select v-model="form.office_division_id">
+            <select v-model="form.office_division_id" :disabled="!form.office_id">
               <option value="">— None —</option>
-              <option v-for="d in options.office_divisions" :key="d.id" :value="d.id">{{ d.name }}</option>
+              <option v-for="d in filteredOfficeDivisions" :key="d.id" :value="d.id">{{ d.name }}</option>
             </select>
           </div>
           <div class="form-group">

@@ -222,6 +222,99 @@ html.light-mode body {
   background: #1fbfb8 !important;
 }
 
+/* ── Sync summary list (Data Sync modal) ── */
+.sync-summary {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+  text-align: left;
+}
+
+.sync-summary__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 2px;
+  border-bottom: 1px solid rgba(108, 143, 214, 0.14);
+}
+
+.sync-summary__row:last-of-type {
+  border-bottom: none;
+}
+
+.sync-summary__label {
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sync-summary__stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.sync-summary__stat {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.sync-summary__stat--synced {
+  color: #1fbfb8;
+  background: rgba(31, 191, 184, 0.14);
+}
+
+.sync-summary__stat--existing {
+  color: #8aa0d7;
+  background: rgba(108, 143, 214, 0.14);
+}
+
+.sync-summary__stat--skipped {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.sync-summary__error {
+  color: #f87171;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.sync-summary__total {
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(108, 143, 214, 0.2);
+  text-align: center;
+  color: #8aa0d7;
+  font-size: 12.5px;
+}
+
+.sync-summary__total strong {
+  color: #e2e8f0;
+  font-size: 14px;
+}
+
+html.light-mode .sync-summary__row {
+  border-bottom-color: #e2e8f0;
+}
+html.light-mode .sync-summary__label {
+  color: #0f172a;
+}
+html.light-mode .sync-summary__total {
+  border-top-color: #e2e8f0;
+  color: #475569;
+}
+html.light-mode .sync-summary__total strong {
+  color: #0f172a;
+}
+
 /* ── Icon overrides ── */
 
 /* Success → teal */

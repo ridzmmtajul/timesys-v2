@@ -26,9 +26,4 @@ class Attendance extends Model
     {
         return $this->belongsTo(Employee::class);
     }
-
-    public function postNumber()
-    {
-        return $this->belongsTo(PostNumber::class, 'post_no');
-    }
 }
