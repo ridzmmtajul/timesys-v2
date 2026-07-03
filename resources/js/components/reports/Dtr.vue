@@ -6,6 +6,7 @@ const {
     officeOptions, divisionOptions, employeeOptions,
     dtrResult, is_loading, is_pdf_loading, errors,
     getOptions, generateDtr, downloadPdf,
+    checkinoutLogs, is_checkinout_loading, fetchCheckinoutLogs,
 } = useDtr();
 
 const step = ref('form');
@@ -269,6 +270,48 @@ const showDayType = (rec) => {
     if (rec.day_type === 'SATURDAY' || rec.day_type === 'SUNDAY') return dtrResult.value.with_saturday;
     return true;
 };
+
+// ── Per-employee DTR page actions ──────────────────────────────
+const verifyModalOpen = ref(false);
+const verifyEmployee  = ref(null);
+const verifyDates     = ref({ from_date: '', to_date: '' });
+
+const loadCheckinoutLogs = () => {
+    if (!verifyEmployee.value) return;
+    fetchCheckinoutLogs({
+        employee_id: verifyEmployee.value.id,
+        from_date:   verifyDates.value.from_date,
+        to_date:     verifyDates.value.to_date,
+    });
+};
+
+const verifyTime = (emp) => {
+    verifyEmployee.value = emp;
+    const y = filters.value.year_num;
+    const m = filters.value.month_num;
+    const fromDay = String(dtrResult.value.from_day).padStart(2, '0');
+    const toDay   = String(dtrResult.value.to_day).padStart(2, '0');
+    verifyDates.value = { from_date: `${y}-${m}-${fromDay}`, to_date: `${y}-${m}-${toDay}` };
+    verifyModalOpen.value = true;
+    loadCheckinoutLogs();
+};
+
+const closeVerifyModal = () => {
+    verifyModalOpen.value = false;
+    verifyEmployee.value  = null;
+    checkinoutLogs.value  = [];
+};
+
+const fmtDateTime = (dt) => {
+    if (!dt) return '';
+    return new Date(dt).toLocaleString('en-PH', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
+    });
+};
+
+const viewWorkSchedule = (emp) => {};
+const viewSoloPosting = (emp) => {};
 
 // ── Time format helper ─────────────────────────────────────────
 const fmt = (t) => {
@@ -611,6 +654,18 @@ const fmt = (t) => {
                     <v-icon icon="mdi-account-outline" size="13" style="color:#1fbfb8;" />
                     {{ emp.full_name }}
                     <span class="dtr-page-label__no">#{{ emp.employee_no }}</span>
+
+                    <div class="dtr-page-actions">
+                        <button class="dtr-action-btn" title="Verify Time" @click="verifyTime(emp)">
+                            <v-icon icon="mdi-clock-check-outline" size="16" />
+                        </button>
+                        <button class="dtr-action-btn" title="Work Schedule" @click="viewWorkSchedule(emp)">
+                            <v-icon icon="mdi-calendar-clock-outline" size="16" />
+                        </button>
+                        <button class="dtr-action-btn" title="Solo Posting" @click="viewSoloPosting(emp)">
+                            <v-icon icon="mdi-map-marker-account-outline" size="16" />
+                        </button>
+                    </div>
                 </div>
 
                 <div class="dtr-page">
@@ -713,6 +768,85 @@ const fmt = (t) => {
             </div>
         </div>
     </div>
+
+    <!-- ── Verify Time Modal ────────────────────────────── -->
+    <v-dialog v-model="verifyModalOpen" max-width="640px">
+        <div class="lib-modal">
+            <div class="lib-modal__header">
+                <div class="lib-modal__header-left">
+                    <div class="lib-modal__icon">
+                        <v-icon icon="mdi-clock-check-outline" size="18" />
+                    </div>
+                    <div>
+                        <p class="lib-modal__eyebrow">Verify Time</p>
+                        <h6 class="lib-modal__title">
+                            {{ verifyEmployee?.full_name }}
+                            <span class="dtr-page-label__no">#{{ verifyEmployee?.employee_no }}</span>
+                        </h6>
+                    </div>
+                </div>
+                <button class="lib-modal__close" @click="closeVerifyModal">
+                    <v-icon icon="mdi-close" size="16" />
+                </button>
+            </div>
+
+            <div class="lib-modal__body">
+                <div class="verify-date-row">
+                    <div class="verify-date-field">
+                        <label class="opt-label">From</label>
+                        <input
+                            type="date" class="opt-input"
+                            v-model="verifyDates.from_date"
+                            @change="loadCheckinoutLogs"
+                        />
+                    </div>
+                    <div class="verify-date-field">
+                        <label class="opt-label">To</label>
+                        <input
+                            type="date" class="opt-input"
+                            v-model="verifyDates.to_date"
+                            @change="loadCheckinoutLogs"
+                        />
+                    </div>
+                </div>
+
+                <div class="dtr-table-wrap verify-table-wrap">
+                    <table class="dtr-emp-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Date &amp; Time</th>
+                                <th>Serial Number</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-if="is_checkinout_loading">
+                                <td colspan="4" class="dtr-empty">Loading…</td>
+                            </tr>
+                            <template v-else>
+                                <tr v-for="(log, idx) in checkinoutLogs" :key="log.id">
+                                    <td>{{ idx + 1 }}</td>
+                                    <td>{{ fmtDateTime(log.check_time) }}</td>
+                                    <td>{{ log.serial_number }}</td>
+                                    <td>
+                                        <span v-if="log.status" class="status-badge status-badge--posted">Posted</span>
+                                    </td>
+                                </tr>
+                                <tr v-if="!checkinoutLogs.length">
+                                    <td colspan="4" class="dtr-empty">No raw check-in/out records found for this range</td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="lib-modal__footer">
+                <button class="lib-modal__btn lib-modal__btn--cancel" @click="closeVerifyModal">Close</button>
+            </div>
+        </div>
+    </v-dialog>
 </template>
 
 <style scoped>
@@ -908,7 +1042,11 @@ const fmt = (t) => {
 .dtr-search-icon { position: absolute; right: 8px; color: #5a78b0; pointer-events: none; }
 
 /* ── Employee table ── */
-.dtr-table-wrap { overflow-x: auto; }
+.dtr-table-wrap {
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(108, 143, 214, 0.25) transparent;
+}
 
 .dtr-emp-table { width: 100%; border-collapse: collapse; }
 
@@ -1126,9 +1264,10 @@ const fmt = (t) => {
     align-items: center;
     gap: 14px;
     padding: 12px 24px;
-    border-bottom: 1px solid rgba(108, 143, 214, 0.15);
-    background: var(--sidebar-bg, #0e1c3a);
+    background: #20253c;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
     flex-shrink: 0;
+    z-index: 1;
 }
 
 .dtr-preview-bar__info {
@@ -1146,15 +1285,15 @@ const fmt = (t) => {
     gap: 6px;
     padding: 8px 16px;
     border-radius: 10px;
-    border: 1px solid rgba(108, 143, 214, 0.25);
-    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
     color: #8aa0d7;
     font-size: 13px;
     font-family: inherit;
     cursor: pointer;
     transition: all 0.15s;
 }
-.dtr-back-btn:hover { background: rgba(255,255,255,0.05); color: #e2e8f0; }
+.dtr-back-btn:hover { background: rgba(255,255,255,0.08); color: #e2e8f0; border-color: rgba(255,255,255,0.18); }
 
 .dtr-print-btn {
     display: inline-flex;
@@ -1197,6 +1336,28 @@ const fmt = (t) => {
     padding-left: 2px;
 }
 .dtr-page-label__no { font-size: 11px; color: #5a78b0; font-weight: 400; margin-left: 2px; }
+
+.dtr-page-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.dtr-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    border: 1px solid rgba(108, 143, 214, 0.25);
+    background: rgba(255, 255, 255, 0.03);
+    color: #8aa0d7;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.dtr-action-btn:hover { background: rgba(31, 191, 184, 0.12); color: #1fbfb8; border-color: rgba(31, 191, 184, 0.4); }
 
 .dtr-page {
     background: #fff;
@@ -1245,4 +1406,25 @@ const fmt = (t) => {
 .dpf-sig-role { font-size: 7pt; margin-top: 2px; color: #444; }
 
 .dpf-verified { font-size: 7pt; font-style: italic; margin-top: 12px; color: #333; }
+
+/* ── Verify Time modal ── */
+.verify-date-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.verify-date-field { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+
+.verify-table-wrap { max-height: 320px; overflow-y: auto; border: 1px solid rgba(108, 143, 214, 0.12); border-radius: 8px; }
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.status-badge--posted { background: rgba(31, 191, 184, 0.12); color: #1fbfb8; }
 </style>

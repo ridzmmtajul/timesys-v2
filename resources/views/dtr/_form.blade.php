@@ -42,18 +42,18 @@
 <table width="100%" style="border-collapse: collapse; font-size: 6pt;">
     <thead>
         <tr>
-            <th rowspan="2" style="border: 0.5pt solid #000; width: 7%; font-weight: bold;">Day</th>
-            <th colspan="2" style="border: 0.5pt solid #000; font-weight: bold;">A.M.</th>
-            <th colspan="2" style="border: 0.5pt solid #000; font-weight: bold;">P.M.</th>
-            <th colspan="2" style="border: 0.5pt solid #000; font-weight: bold;">Undertime</th>
+            <th rowspan="2" style="border: 0.5pt solid #000; width: 7%; font-weight: bold; padding: 2pt;">Day</th>
+            <th colspan="2" style="border: 0.5pt solid #000; font-weight: bold; padding: 2pt;">A.M.</th>
+            <th colspan="2" style="border: 0.5pt solid #000; font-weight: bold; padding: 2pt;">P.M.</th>
+            <th colspan="2" style="border: 0.5pt solid #000; font-weight: bold; padding: 2pt;">Undertime</th>
         </tr>
         <tr>
-            <th style="border: 0.5pt solid #000; font-weight: bold; width: 15%;">Arrival</th>
-            <th style="border: 0.5pt solid #000; font-weight: bold; width: 15%;">Departure</th>
-            <th style="border: 0.5pt solid #000; font-weight: bold; width: 15%;">Arrival</th>
-            <th style="border: 0.5pt solid #000; font-weight: bold; width: 15%;">Departure</th>
-            <th style="border: 0.5pt solid #000; font-weight: bold; width: 16%;">Hours</th>
-            <th style="border: 0.5pt solid #000; font-weight: bold; width: 17%;">Minutes</th>
+            <th style="border: 0.5pt solid #000; font-weight: bold; width: 15%; padding: 2pt;">Arrival</th>
+            <th style="border: 0.5pt solid #000; font-weight: bold; width: 15%; padding: 2pt;">Departure</th>
+            <th style="border: 0.5pt solid #000; font-weight: bold; width: 15%; padding: 2pt;">Arrival</th>
+            <th style="border: 0.5pt solid #000; font-weight: bold; width: 15%; padding: 2pt;">Departure</th>
+            <th style="border: 0.5pt solid #000; font-weight: bold; width: 16%; padding: 2pt;">Hours</th>
+            <th style="border: 0.5pt solid #000; font-weight: bold; width: 17%; padding: 2pt;">Minutes</th>
         </tr>
     </thead>
     <tbody>
@@ -61,36 +61,36 @@
             @php $rec = $emp['daily_records'][$day]; @endphp
             @if ($rec === null)
                 <tr style="height: 11pt;">
-                    <td style="border: 0.5pt solid #000; text-align: center;">{{ $day }}</td>
-                    <td style="border: 0.5pt solid #000;"></td><td style="border: 0.5pt solid #000;"></td>
-                    <td style="border: 0.5pt solid #000;"></td><td style="border: 0.5pt solid #000;"></td>
-                    <td style="border: 0.5pt solid #000;"></td><td style="border: 0.5pt solid #000;"></td>
+                    <td style="border: 0.5pt solid #000; text-align: center; padding: 1pt 2pt;">{{ $day }}</td>
+                    <td style="border: 0.5pt solid #000; padding: 1pt 2pt;"></td><td style="border: 0.5pt solid #000; padding: 1pt 2pt;"></td>
+                    <td style="border: 0.5pt solid #000; padding: 1pt 2pt;"></td><td style="border: 0.5pt solid #000; padding: 1pt 2pt;"></td>
+                    <td style="border: 0.5pt solid #000; padding: 1pt 2pt;"></td><td style="border: 0.5pt solid #000; padding: 1pt 2pt;"></td>
                 </tr>
             @elseif (($rec['day_type'] === 'HOLIDAY' && $with_holiday) || (in_array($rec['day_type'], ['SATURDAY', 'SUNDAY']) && $with_saturday))
                 <tr style="height: 11pt;">
-                    <td style="border: 0.5pt solid #000; text-align: center;">{{ $day }}</td>
-                    <td colspan="4" style="border: 0.5pt solid #000; text-align: center; font-style: italic;">{{ $rec['day_type'] }}</td>
-                    <td style="border: 0.5pt solid #000;"></td>
-                    <td style="border: 0.5pt solid #000;"></td>
+                    <td style="border: 0.5pt solid #000; text-align: center; padding: 1pt 2pt;">{{ $day }}</td>
+                    <td colspan="4" style="border: 0.5pt solid #000; text-align: center; font-style: italic; padding: 1pt 2pt;">{{ $rec['day_type'] }}</td>
+                    <td style="border: 0.5pt solid #000; padding: 1pt 2pt;"></td>
+                    <td style="border: 0.5pt solid #000; padding: 1pt 2pt;"></td>
                 </tr>
             @else
                 <tr style="height: 11pt;">
-                    <td style="border: 0.5pt solid #000; text-align: center;">{{ $day }}</td>
-                    <td style="border: 0.5pt solid #000; text-align: center;">{{ $fmt($rec['am_arrival']) }}</td>
-                    <td style="border: 0.5pt solid #000; text-align: center;">{{ $fmt($rec['am_departure']) }}</td>
-                    <td style="border: 0.5pt solid #000; text-align: center;">{{ $fmt($rec['pm_arrival']) }}</td>
-                    <td style="border: 0.5pt solid #000; text-align: center;">{{ $fmt($rec['pm_departure']) }}</td>
-                    <td style="border: 0.5pt solid #000; text-align: center;">{{ $rec['undertime_hours'] !== null ? $rec['undertime_hours'] : '' }}</td>
-                    <td style="border: 0.5pt solid #000; text-align: center;">{{ $rec['undertime_minutes'] !== null ? $rec['undertime_minutes'] : '' }}</td>
+                    <td style="border: 0.5pt solid #000; text-align: center; padding: 1pt 2pt;">{{ $day }}</td>
+                    <td style="border: 0.5pt solid #000; text-align: center; padding: 1pt 2pt;">{{ $fmt($rec['am_arrival']) }}</td>
+                    <td style="border: 0.5pt solid #000; text-align: center; padding: 1pt 2pt;">{{ $fmt($rec['am_departure']) }}</td>
+                    <td style="border: 0.5pt solid #000; text-align: center; padding: 1pt 2pt;">{{ $fmt($rec['pm_arrival']) }}</td>
+                    <td style="border: 0.5pt solid #000; text-align: center; padding: 1pt 2pt;">{{ $fmt($rec['pm_departure']) }}</td>
+                    <td style="border: 0.5pt solid #000; text-align: center; padding: 1pt 2pt;">{{ $rec['undertime_hours'] !== null ? $rec['undertime_hours'] : '' }}</td>
+                    <td style="border: 0.5pt solid #000; text-align: center; padding: 1pt 2pt;">{{ $rec['undertime_minutes'] !== null ? $rec['undertime_minutes'] : '' }}</td>
                 </tr>
             @endif
         @endfor
         <tr style="height: 11pt;">
-            <td colspan="5" style="border: 0.5pt solid #000; text-align: right; font-style: italic; font-weight: bold; padding-right: 3pt;">Total</td>
-            <td style="border: 0.5pt solid #000; text-align: center; font-weight: bold;">
+            <td colspan="5" style="border: 0.5pt solid #000; text-align: right; font-style: italic; font-weight: bold; padding: 1pt 3pt;">Total</td>
+            <td style="border: 0.5pt solid #000; text-align: center; font-weight: bold; padding: 1pt 2pt;">
                 {{ $emp['total_undertime_hours'] > 0 ? $emp['total_undertime_hours'] : '' }}
             </td>
-            <td style="border: 0.5pt solid #000; text-align: center; font-weight: bold;">
+            <td style="border: 0.5pt solid #000; text-align: center; font-weight: bold; padding: 1pt 2pt;">
                 {{ $emp['total_undertime_minutes'] > 0 ? $emp['total_undertime_minutes'] : '' }}
             </td>
         </tr>

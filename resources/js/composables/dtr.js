@@ -10,6 +10,10 @@ export default function useDtr() {
     const is_pdf_loading  = ref(false);
     const errors          = ref({});
 
+    const checkinoutLogs     = ref([]);
+    const checkinoutEmployee = ref(null);
+    const is_checkinout_loading = ref(false);
+
     const getOptions = async () => {
         const res = await axios.get('/api/dtr/options');
         officeOptions.value   = res.data.data.offices;
@@ -48,6 +52,21 @@ export default function useDtr() {
         }
     };
 
+    const fetchCheckinoutLogs = async (payload) => {
+        is_checkinout_loading.value = true;
+        try {
+            const res = await axios.get('/api/dtr/checkinout', { params: payload });
+            checkinoutLogs.value     = res.data.data;
+            checkinoutEmployee.value = res.data.employee;
+            return true;
+        } catch (e) {
+            checkinoutLogs.value = [];
+            return false;
+        } finally {
+            is_checkinout_loading.value = false;
+        }
+    };
+
     return {
         officeOptions,
         divisionOptions,
@@ -59,5 +78,9 @@ export default function useDtr() {
         getOptions,
         generateDtr,
         downloadPdf,
+        checkinoutLogs,
+        checkinoutEmployee,
+        is_checkinout_loading,
+        fetchCheckinoutLogs,
     };
 }

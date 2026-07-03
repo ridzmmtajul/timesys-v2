@@ -42,9 +42,11 @@ class SyncController extends Controller
             'image'                => $emp->image,
             'signature'            => $emp->signature,
             'office_name'          => $emp->office?->name,
+            'office_code'          => $emp->office?->code,
             'employment_type_name' => $emp->employmentType?->name,
             'position_name'        => $emp->position?->name,
             'office_division_name' => $emp->officeDivision?->name,
+            'office_division_code' => $emp->officeDivision?->code,
         ])->values()->all();
 
         $response = Http::withToken($apiKey)
@@ -76,7 +78,7 @@ class SyncController extends Controller
 
         foreach ($employees as $data) {
             try {
-                $officeId = $this->resolveOffice($data['office_name'] ?? null);
+                $officeId = $this->resolveOffice($data['office_name'] ?? null, $data['office_code'] ?? null);
 
                 if (!$officeId) {
                     $skipped++;
@@ -100,7 +102,7 @@ class SyncController extends Controller
                         'office_id'            => $officeId,
                         'employment_type_id'   => $this->resolveEmploymentType($data['employment_type_name'] ?? null),
                         'position_id'          => $this->resolvePosition($data['position_name'] ?? null),
-                        'office_division_id'   => $this->resolveOfficeDivision($data['office_division_name'] ?? null, $officeId),
+                        'office_division_id'   => $this->resolveOfficeDivision($data['office_division_name'] ?? null, $data['office_division_code'] ?? null, $officeId),
                     ]
                 );
 
@@ -119,10 +121,10 @@ class SyncController extends Controller
         ]);
     }
 
-    private function resolveOffice(?string $name): ?int
+    private function resolveOffice(?string $name, ?string $code): ?int
     {
         if (!$name) return null;
-        return Office::firstOrCreate(['name' => $name])->id;
+        return Office::firstOrCreate(['name' => $name], ['code' => $code ?? $name])->id;
     }
 
     private function resolveEmploymentType(?string $name): ?int
@@ -137,11 +139,12 @@ class SyncController extends Controller
         return Position::firstOrCreate(['name' => $name])->id;
     }
 
-    private function resolveOfficeDivision(?string $name, int $officeId): ?int
+    private function resolveOfficeDivision(?string $name, ?string $code, int $officeId): ?int
     {
         if (!$name) return null;
         return OfficeDivision::firstOrCreate(
-            ['name' => $name, 'office_id' => $officeId]
+            ['name' => $name, 'office_id' => $officeId],
+            ['code' => $code ?? $name]
         )->id;
     }
 }

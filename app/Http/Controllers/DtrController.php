@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AttendanceUndertimeView;
+use App\Models\Checkinout;
 use App\Models\Employee;
 use App\Models\Holiday;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -59,6 +60,38 @@ class DtrController extends Controller
         $filename = 'DTR_' . str_replace(' ', '_', $data['month']) . '.pdf';
 
         return $pdf->stream($filename);
+    }
+
+    public function checkinout(Request $request)
+    {
+        $request->validate([
+            'employee_id' => 'required|string|exists:employees,id',
+            'from_date'   => 'required|date',
+            'to_date'     => 'required|date|after_or_equal:from_date',
+        ]);
+
+        $employee = Employee::findOrFail($request->employee_id);
+
+        $logs = Checkinout::where('badge_number', $employee->employee_no)
+            ->whereBetween('check_time', [
+                $request->from_date . ' 00:00:00',
+                $request->to_date . ' 23:59:59',
+            ])
+            ->orderBy('check_time')
+            ->get(['id', 'badge_number', 'check_time', 'serial_number', 'status']);
+
+        return response()->json([
+            'data'     => $logs,
+            'employee' => [
+                'id'          => $employee->id,
+                'employee_no' => $employee->employee_no,
+                'full_name'   => trim(
+                    $employee->last_name . ', ' . $employee->first_name .
+                    ($employee->middle_name ? ' ' . $employee->middle_name : '') .
+                    ($employee->name_ext   ? ' ' . $employee->name_ext   : '')
+                ),
+            ],
+        ]);
     }
 
     // ── Private helpers ──────────────────────────────────────
