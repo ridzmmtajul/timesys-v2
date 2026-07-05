@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'sync.api_key' => \App\Http\Middleware\SyncApiKey::class,
+            'extend.token' => \App\Http\Middleware\ExtendTokenExpiration::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

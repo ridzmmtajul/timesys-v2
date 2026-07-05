@@ -9,6 +9,19 @@ if (token) {
     window.axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 }
 
+window.axios.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401 && localStorage.getItem('timesys_token')) {
+            localStorage.removeItem('timesys_token');
+            localStorage.removeItem('timesys_user');
+            delete window.axios.defaults.headers.common['Authorization'];
+            window.location.hash = '#/login';
+        }
+        return Promise.reject(error);
+    }
+);
+
 /**
  * Echo exposes an expressive API for subscribing to channels and listening
  * for events that are broadcast by Laravel. Echo and event broadcasting

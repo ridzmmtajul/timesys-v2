@@ -141,9 +141,10 @@ class SyncController extends Controller
 
     /**
      * Shared push routine: sends only records that have never been synced
-     * (synced_at is null) and marks them synced on success. The sync_logs
-     * trail is written on the receiving (central) side only, once the
-     * payload has actually been received and processed.
+     * (synced_at is null) and marks them synced on success. A sync_logs
+     * entry is written on the pushing (local) side for the attempt, and
+     * separately on the receiving (central) side once the payload has
+     * actually been received and processed.
      */
     private function pushModule(string $modelClass, $query, string $endpoint, string $payloadKey, callable $mapper): JsonResponse
     {
@@ -177,16 +178,24 @@ class SyncController extends Controller
                 ->timeout(60)
                 ->post(rtrim($centralUrl, '/') . $endpoint, [$payloadKey => $payload]);
         } catch (\Throwable $e) {
+            $message = 'Unable to reach the central server.';
+
+            $this->recordLog($payloadKey, 'push', 'failed', ['total' => $records->count()], [$message], $message);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Unable to reach the central server.',
+                'message' => $message,
             ], 502);
         }
 
         if ($response->failed()) {
+            $message = 'Central server returned an error.';
+
+            $this->recordLog($payloadKey, 'push', 'failed', ['total' => $records->count()], [$message], $message);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Central server returned an error.',
+                'message' => $message,
                 'details' => $response->json(),
             ], 502);
         }
@@ -194,6 +203,25 @@ class SyncController extends Controller
         $result = $response->json();
 
         $modelClass::whereIn('id', $records->pluck('id'))->update(['synced_at' => now()]);
+
+        $synced   = $result['synced'] ?? 0;
+        $existing = $result['existing'] ?? 0;
+        $skipped  = $result['skipped'] ?? 0;
+        $errors   = $result['errors'] ?? [];
+
+        $status = 'success';
+        if (!($result['success'] ?? true)) {
+            $status = 'failed';
+        } elseif (!empty($errors)) {
+            $status = ($synced > 0 || $existing > 0) ? 'partial' : 'failed';
+        }
+
+        $this->recordLog($payloadKey, 'push', $status, [
+            'total'    => $synced + $existing + $skipped,
+            'synced'   => $synced,
+            'existing' => $existing,
+            'skipped'  => $skipped,
+        ], $errors, $result['message'] ?? null);
 
         return response()->json($result);
     }

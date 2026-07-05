@@ -27,7 +27,7 @@ class AuthController extends Controller
             );
         }
 
-        $token = $user->createToken('api-token')->plainTextToken;
+        $token = $user->createToken('api-token', ['*'], now()->addHour())->plainTextToken;
 
         return response()->json([
             'token' => $token,

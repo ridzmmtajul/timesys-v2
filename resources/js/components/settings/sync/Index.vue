@@ -9,6 +9,10 @@ function formatDate(value) {
     return new Date(value).toLocaleString();
 }
 
+function formatCount(value) {
+    return Number(value ?? 0).toLocaleString();
+}
+
 function statusLabel(status) {
     return { success: 'Success', partial: 'Partial', failed: 'Failed' }[status] || status;
 }
@@ -38,7 +42,7 @@ onMounted(() => {
                 <div class="kpi-strip">
                     <div v-for="mod in SYNC_MODULES" :key="mod.key" class="kpi-card">
                         <span class="kpi-label">{{ mod.label }}</span>
-                        <strong>{{ pendingCounts[mod.key] ?? 0 }}</strong>
+                        <strong>{{ formatCount(pendingCounts[mod.key]) }}</strong>
                     </div>
                 </div>
 
@@ -107,7 +111,7 @@ onMounted(() => {
                 </button>
                 <span class="page-info">
                     Page {{ pagination.current_page }} of {{ pagination.last_page }}
-                    <small>({{ pagination.total }} total)</small>
+                    <small>({{ formatCount(pagination.total) }} total)</small>
                 </span>
                 <button
                     class="page-btn"
@@ -121,7 +125,7 @@ onMounted(() => {
             <footer class="footer-info">
                 <span><v-icon icon="mdi-arrow-right" size="12" /> Sync activity</span>
                 <span v-if="pagination.total">
-                    <v-icon icon="mdi-check-circle" size="12" /> {{ pagination.total }} log(s)
+                    <v-icon icon="mdi-check-circle" size="12" /> {{ formatCount(pagination.total) }} log(s)
                 </span>
             </footer>
         </div>

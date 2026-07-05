@@ -34,7 +34,7 @@ Route::middleware('sync.api_key')->group(function () {
     Route::post('/sync/receive-attendances', [SyncController::class, 'receiveAttendances']);
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'extend.token'])->group(function () {
     Route::get('/user', fn (Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
