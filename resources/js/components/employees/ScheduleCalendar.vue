@@ -18,6 +18,7 @@ const currentDate     = ref(new Date());
 const showAddForm     = ref(false);
 const editingSchedule   = ref({});
 const selectedSchedule  = ref(null);
+const activeTab         = ref('calendar');
 
 const DAY_NAMES    = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const MONTH_NAMES  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -71,9 +72,9 @@ function scheduleName(ws) {
 }
 
 const SCHEDULE_FOR_LABEL = {
-  day_in_week:    'Day in a Week',
-  inclusive_date: 'Inclusive Date',
-  everyday:       'Everyday',
+  day_in_week:      'Day in a Week',
+  'inclusive date': 'Inclusive Date',
+  everyday:         'Everyday',
 };
 
 async function fetchSchedules() {
@@ -94,6 +95,7 @@ async function fetchSchedules() {
 watch(() => props.show, (val) => {
   if (val && props.employee) {
     currentDate.value = new Date();
+    activeTab.value = 'calendar';
     fetchSchedules();
   } else {
     workSchedules.value = [];
@@ -132,9 +134,9 @@ function getSchedulesForDate(dateStr, dow) {
   );
   if (dayInWeek.length) return [dayInWeek[0]];
 
-  // Priority 2: inclusive_date
+  // Priority 2: inclusive date
   const inclusiveDate = all.filter(ws =>
-    ws.schedule_for === 'inclusive_date' && inRange(ws)
+    ws.schedule_for === 'inclusive date' && inRange(ws)
   );
   if (inclusiveDate.length) return [inclusiveDate[0]];
 
@@ -247,8 +249,26 @@ function deleteSchedule(ws) {
             </div>
           </div>
 
+          <!-- Tabs -->
+          <div class="sc-tabs">
+            <button
+              class="sc-tab"
+              :class="{ 'is-active': activeTab === 'calendar' }"
+              @click="activeTab = 'calendar'"
+            >
+              <i class="fas fa-calendar-alt"></i> Calendar
+            </button>
+            <button
+              class="sc-tab"
+              :class="{ 'is-active': activeTab === 'list' }"
+              @click="activeTab = 'list'"
+            >
+              <i class="fas fa-list"></i> List
+            </button>
+          </div>
+
           <!-- Month nav -->
-          <div class="sc-nav">
+          <div v-if="activeTab === 'calendar'" class="sc-nav">
             <button class="sc-nav__arrow" @click="prevMonth">
               <i class="fas fa-chevron-left"></i>
             </button>
@@ -266,8 +286,8 @@ function deleteSchedule(ws) {
           </div>
 
           <template v-else>
-            <!-- Calendar -->
-            <div class="sc-calendar">
+            <!-- Calendar tab -->
+            <div v-if="activeTab === 'calendar'" class="sc-calendar">
               <div class="sc-week-row sc-week-row--header">
                 <div v-for="h in WEEK_HEADERS" :key="h" class="sc-cell sc-cell--head">{{ h }}</div>
               </div>
@@ -304,22 +324,32 @@ function deleteSchedule(ws) {
               </div>
             </div>
 
-            <!-- Legend -->
-            <div v-if="workSchedules.length > 0" class="sc-legend">
-              <div
-                v-for="ws in workSchedules"
-                :key="ws.id"
-                class="sc-legend-item"
-                :style="{ borderColor: colorMap[ws.id]?.border }"
-              >
-                <span class="sc-legend-dot" :style="{ background: colorMap[ws.id]?.text }"></span>
-                <span class="sc-legend-label">{{ scheduleName(ws) }}</span>
-                <span class="sc-legend-range">
-                  {{ ws.from_date || 'open' }} → {{ ws.to_date || 'open' }}
-                </span>
-                <span v-if="ws.days?.length" class="sc-legend-days">
-                  {{ ws.days.map(d => d.substring(0,3)).join(', ') }}
-                </span>
+            <!-- List tab -->
+            <div v-else class="sc-table-wrap">
+              <div class="sc-trow sc-trow--head">
+                <span class="sc-tcell sc-tcell--dot"></span>
+                <span class="sc-tcell">Schedule</span>
+                <span class="sc-tcell">Type</span>
+                <span class="sc-tcell">Date Range</span>
+                <span class="sc-tcell">Days</span>
+                <span class="sc-tcell">Time</span>
+              </div>
+              <div class="sc-tbody">
+                <div
+                  v-for="ws in workSchedules"
+                  :key="ws.id"
+                  class="sc-trow"
+                  @click="selectedSchedule = ws"
+                >
+                  <span class="sc-tcell sc-tcell--dot">
+                    <span class="sc-table-dot" :style="{ background: colorMap[ws.id]?.text }"></span>
+                  </span>
+                  <span class="sc-tcell sc-tcell--name">{{ scheduleName(ws) }}</span>
+                  <span class="sc-tcell">{{ SCHEDULE_FOR_LABEL[ws.schedule_for] ?? ws.schedule_for }}</span>
+                  <span class="sc-tcell">{{ ws.from_date || 'open' }} → {{ ws.to_date || 'open' }}</span>
+                  <span class="sc-tcell">{{ ws.days?.length ? ws.days.map(d => d.substring(0,3)).join(', ') : '—' }}</span>
+                  <span class="sc-tcell">{{ fmtScheduleTimes(ws) || '—' }}</span>
+                </div>
               </div>
             </div>
 
@@ -546,6 +576,39 @@ function deleteSchedule(ws) {
   border-color: rgba(220,60,60,0.3);
 }
 
+/* ── Tabs ── */
+.sc-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 14px 22px 0;
+}
+
+.sc-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 9px 9px 0 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #6a84bf;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sc-tab:hover {
+  color: #9bb0da;
+}
+
+.sc-tab.is-active {
+  background: rgba(31,191,184,0.1);
+  border-color: rgba(31,191,184,0.28);
+  border-bottom-color: transparent;
+  color: #52d3d0;
+}
+
 /* ── Month nav ── */
 .sc-nav {
   display: flex;
@@ -728,48 +791,71 @@ function deleteSchedule(ws) {
   background: none;
 }
 
-/* ── Legend ── */
-.sc-legend {
+/* ── List (table) ── */
+.sc-table-wrap {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px 22px 16px;
-  border-top: 1px solid rgba(121,146,207,0.1);
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px 22px 10px;
+  font-size: 12.5px;
 }
 
-.sc-legend-item {
-  display: flex;
+.sc-trow {
+  display: grid;
+  grid-template-columns: 18px minmax(120px, 1.3fr) 100px 190px 90px 150px;
   align-items: center;
-  gap: 7px;
-  padding: 5px 10px 5px 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(121,146,207,0.18);
-  background: rgba(14,22,48,0.5);
-  font-size: 11px;
+  gap: 10px;
+  padding: 10px;
 }
 
-.sc-legend-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.sc-trow--head {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6a84bf;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0 10px 10px;
+  border-bottom: 1px solid rgba(121,146,207,0.16);
   flex-shrink: 0;
 }
 
-.sc-legend-label {
+.sc-tbody {
+  max-height: 380px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sc-tbody::-webkit-scrollbar { width: 5px; }
+.sc-tbody::-webkit-scrollbar-track { background: transparent; }
+.sc-tbody::-webkit-scrollbar-thumb { background: rgba(121,146,207,0.22); border-radius: 3px; }
+
+.sc-tbody .sc-trow {
+  cursor: pointer;
+  border-bottom: 1px solid rgba(121,146,207,0.08);
+  transition: background 0.15s;
+}
+
+.sc-tbody .sc-trow:hover {
+  background: rgba(31,191,184,0.08);
+}
+
+.sc-tcell {
+  color: #cdd9f5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sc-tcell--name {
   color: #edf5ff;
   font-weight: 600;
 }
 
-.sc-legend-range {
-  color: #6a84bf;
-}
-
-.sc-legend-days {
-  color: #52d3d0;
-  font-size: 10px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: rgba(31,191,184,0.1);
+.sc-table-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
 
 /* ── Empty ── */

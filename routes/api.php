@@ -131,6 +131,7 @@ Route::middleware(['auth:sanctum', 'extend.token'])->group(function () {
     Route::post('/dtr/generate', [DtrController::class, 'generate']);
     Route::post('/dtr/pdf', [DtrController::class, 'pdf']);
     Route::get('/dtr/checkinout', [DtrController::class, 'checkinout']);
+    Route::get('/dtr/workschedule', [DtrController::class, 'workschedule']);
 
     // Sync push — Sanctum-protected, called from local instance UI
     Route::post('/sync/push-employees', [SyncController::class, 'pushEmployees']);

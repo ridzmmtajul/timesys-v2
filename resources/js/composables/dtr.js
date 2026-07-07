@@ -14,6 +14,10 @@ export default function useDtr() {
     const checkinoutEmployee = ref(null);
     const is_checkinout_loading = ref(false);
 
+    const workSchedules        = ref([]);
+    const workScheduleEmployee = ref(null);
+    const is_workschedule_loading = ref(false);
+
     const getOptions = async () => {
         const res = await axios.get('/api/dtr/options');
         officeOptions.value   = res.data.data.offices;
@@ -67,6 +71,21 @@ export default function useDtr() {
         }
     };
 
+    const fetchWorkSchedules = async (payload) => {
+        is_workschedule_loading.value = true;
+        try {
+            const res = await axios.get('/api/dtr/workschedule', { params: payload });
+            workSchedules.value       = res.data.data;
+            workScheduleEmployee.value = res.data.employee;
+            return true;
+        } catch (e) {
+            workSchedules.value = [];
+            return false;
+        } finally {
+            is_workschedule_loading.value = false;
+        }
+    };
+
     return {
         officeOptions,
         divisionOptions,
@@ -82,5 +101,9 @@ export default function useDtr() {
         checkinoutEmployee,
         is_checkinout_loading,
         fetchCheckinoutLogs,
+        workSchedules,
+        workScheduleEmployee,
+        is_workschedule_loading,
+        fetchWorkSchedules,
     };
 }

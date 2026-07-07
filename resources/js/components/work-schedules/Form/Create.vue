@@ -164,13 +164,13 @@ const handleClickOutside = (e) => {
 const SCHEDULE_FOR_OPTIONS = [
     { value: 'everyday',       label: 'Everyday',        icon: 'mdi-calendar-today' },
     { value: 'day_in_week',    label: 'Day in a Week',   icon: 'mdi-calendar-week' },
-    { value: 'inclusive_date', label: 'Inclusive Date',  icon: 'mdi-calendar-range' },
+    { value: 'inclusive date', label: 'Inclusive Date',  icon: 'mdi-calendar-range' },
 ];
 
 const selectScheduleFor = (value) => {
     form.schedule_for = value;
     if (value !== 'day_in_week') form.days = [];
-    if (value !== 'inclusive_date') {
+    if (value !== 'inclusive date') {
         form.from_date = null;
         form.to_date = null;
     }
@@ -467,7 +467,7 @@ const save = async () => {
                 </div>
 
                 <!-- Date Range -->
-                <div v-if="form.schedule_for === 'inclusive_date'" class="lib-modal__field">
+                <div v-if="form.schedule_for === 'inclusive date'" class="lib-modal__field">
                     <label class="lib-modal__label">Date Range</label>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                         <div>

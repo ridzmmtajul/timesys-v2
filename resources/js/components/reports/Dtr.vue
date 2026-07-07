@@ -7,6 +7,7 @@ const {
     dtrResult, is_loading, is_pdf_loading, errors,
     getOptions, generateDtr, downloadPdf,
     checkinoutLogs, is_checkinout_loading, fetchCheckinoutLogs,
+    workSchedules, is_workschedule_loading, fetchWorkSchedules,
 } = useDtr();
 
 const step = ref('form');
@@ -310,7 +311,44 @@ const fmtDateTime = (dt) => {
     });
 };
 
-const viewWorkSchedule = (emp) => {};
+// ── Work Schedule modal ────────────────────────────────────────
+const workScheduleModalOpen = ref(false);
+const workScheduleEmp       = ref(null);
+const workScheduleRange     = ref({ from_date: '', to_date: '' });
+
+const loadWorkSchedules = () => {
+    if (!workScheduleEmp.value) return;
+    fetchWorkSchedules({
+        employee_id: workScheduleEmp.value.id,
+        from_date:   workScheduleRange.value.from_date,
+        to_date:     workScheduleRange.value.to_date,
+    });
+};
+
+const viewWorkSchedule = (emp) => {
+    workScheduleEmp.value = emp;
+    const y = filters.value.year_num;
+    const m = filters.value.month_num;
+    const fromDay = String(dtrResult.value.from_day).padStart(2, '0');
+    const toDay   = String(dtrResult.value.to_day).padStart(2, '0');
+    workScheduleRange.value = { from_date: `${y}-${m}-${fromDay}`, to_date: `${y}-${m}-${toDay}` };
+    workScheduleModalOpen.value = true;
+    loadWorkSchedules();
+};
+
+const closeWorkScheduleModal = () => {
+    workScheduleModalOpen.value = false;
+    workScheduleEmp.value       = null;
+    workSchedules.value         = [];
+};
+
+const fmtDate = (d) => {
+    if (!d) return '—';
+    return new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+const fmtDays = (days) => (days && days.length ? days.map(d => d.substring(0, 3)).join(', ') : '—');
+
 const viewSoloPosting = (emp) => {};
 
 // ── Time format helper ─────────────────────────────────────────
@@ -844,6 +882,88 @@ const fmt = (t) => {
 
             <div class="lib-modal__footer">
                 <button class="lib-modal__btn lib-modal__btn--cancel" @click="closeVerifyModal">Close</button>
+            </div>
+        </div>
+    </v-dialog>
+
+    <!-- ── Work Schedule Modal ──────────────────────────── -->
+    <v-dialog v-model="workScheduleModalOpen" max-width="680px">
+        <div class="lib-modal">
+            <div class="lib-modal__header">
+                <div class="lib-modal__header-left">
+                    <div class="lib-modal__icon">
+                        <v-icon icon="mdi-calendar-clock-outline" size="18" />
+                    </div>
+                    <div>
+                        <p class="lib-modal__eyebrow">Work Schedule</p>
+                        <h6 class="lib-modal__title">
+                            {{ workScheduleEmp?.full_name }}
+                            <span class="dtr-page-label__no">#{{ workScheduleEmp?.employee_no }}</span>
+                        </h6>
+                    </div>
+                </div>
+                <button class="lib-modal__close" @click="closeWorkScheduleModal">
+                    <v-icon icon="mdi-close" size="16" />
+                </button>
+            </div>
+
+            <div class="lib-modal__body">
+                <div class="verify-date-row">
+                    <div class="verify-date-field">
+                        <label class="opt-label">From</label>
+                        <input
+                            type="date" class="opt-input"
+                            v-model="workScheduleRange.from_date"
+                            @change="loadWorkSchedules"
+                        />
+                    </div>
+                    <div class="verify-date-field">
+                        <label class="opt-label">To</label>
+                        <input
+                            type="date" class="opt-input"
+                            v-model="workScheduleRange.to_date"
+                            @change="loadWorkSchedules"
+                        />
+                    </div>
+                </div>
+
+                <div class="dtr-table-wrap verify-table-wrap">
+                    <table class="dtr-emp-table">
+                        <thead>
+                            <tr>
+                                <th>Schedule</th>
+                                <th>Date Range</th>
+                                <th>Days</th>
+                                <th>A.M.</th>
+                                <th>P.M.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-if="is_workschedule_loading">
+                                <td colspan="5" class="dtr-empty">Loading…</td>
+                            </tr>
+                            <template v-else>
+                                <tr v-for="ws in workSchedules" :key="ws.id">
+                                    <td>
+                                        {{ ws.schedule_name || ws.schedule_for || '—' }}
+                                        <span v-if="ws.schedule_type" class="dtr-page-label__no" style="display:block;">{{ ws.schedule_type }}</span>
+                                    </td>
+                                    <td>{{ fmtDate(ws.from_date) }} – {{ fmtDate(ws.to_date) }}</td>
+                                    <td>{{ fmtDays(ws.days) }}</td>
+                                    <td>{{ ws.timein_AM ? fmt(ws.timein_AM) : '' }}{{ ws.timein_AM && ws.timeout_AM ? '–' : '' }}{{ ws.timeout_AM ? fmt(ws.timeout_AM) : '' }}</td>
+                                    <td>{{ ws.timein_PM ? fmt(ws.timein_PM) : '' }}{{ ws.timein_PM && ws.timeout_PM ? '–' : '' }}{{ ws.timeout_PM ? fmt(ws.timeout_PM) : '' }}</td>
+                                </tr>
+                                <tr v-if="!workSchedules.length">
+                                    <td colspan="5" class="dtr-empty">No work schedule found for this range</td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="lib-modal__footer">
+                <button class="lib-modal__btn lib-modal__btn--cancel" @click="closeWorkScheduleModal">Close</button>
             </div>
         </div>
     </v-dialog>

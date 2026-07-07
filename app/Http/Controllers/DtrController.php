@@ -6,6 +6,7 @@ use App\Models\AttendanceUndertimeView;
 use App\Models\Checkinout;
 use App\Models\Employee;
 use App\Models\Holiday;
+use App\Models\WorkSchedule;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -82,6 +83,66 @@ class DtrController extends Controller
 
         return response()->json([
             'data'     => $logs,
+            'employee' => [
+                'id'          => $employee->id,
+                'employee_no' => $employee->employee_no,
+                'full_name'   => trim(
+                    $employee->last_name . ', ' . $employee->first_name .
+                    ($employee->middle_name ? ' ' . $employee->middle_name : '') .
+                    ($employee->name_ext   ? ' ' . $employee->name_ext   : '')
+                ),
+            ],
+        ]);
+    }
+
+    public function workschedule(Request $request)
+    {
+        $request->validate([
+            'employee_id' => 'required|string|exists:employees,id',
+            'from_date'   => 'required|date',
+            'to_date'     => 'required|date|after_or_equal:from_date',
+        ]);
+
+        $employee = Employee::findOrFail($request->employee_id);
+
+        $schedules = WorkSchedule::with(['schedule', 'scheduleType'])
+            ->where('employee_id', $employee->id)
+            ->where('schedule_for', 'inclusive date')
+            ->where('from_date', '<=', $request->to_date)
+            ->where('to_date', '>=', $request->from_date)
+            ->orderBy('from_date')
+            ->get();
+
+        if ($schedules->isEmpty()) {
+            $schedules = WorkSchedule::with(['schedule', 'scheduleType'])
+                ->where('employee_id', $employee->id)
+                ->where('schedule_for', 'day_in_week')
+                ->get();
+        }
+
+        if ($schedules->isEmpty()) {
+            $schedules = WorkSchedule::with(['schedule', 'scheduleType'])
+                ->where('employee_id', $employee->id)
+                ->where('schedule_for', 'everyday')
+                ->get();
+        }
+
+        return response()->json([
+            'data' => $schedules->map(fn ($ws) => [
+                'id'              => $ws->id,
+                'schedule_name'   => $ws->schedule?->name ?? '',
+                'schedule_type'   => $ws->scheduleType?->name ?? '',
+                'timein_AM'       => $ws->timein_AM,
+                'timeout_AM'      => $ws->timeout_AM,
+                'timein_PM'       => $ws->timein_PM,
+                'timeout_PM'      => $ws->timeout_PM,
+                'from_date'       => $ws->from_date,
+                'to_date'         => $ws->to_date,
+                'schedule_for'    => $ws->schedule_for,
+                'days'            => $ws->days ?? [],
+                'is_others'       => $ws->is_others,
+                'no_lunch_gap'    => $ws->no_lunch_gap,
+            ]),
             'employee' => [
                 'id'          => $employee->id,
                 'employee_no' => $employee->employee_no,
