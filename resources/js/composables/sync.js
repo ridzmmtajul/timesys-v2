@@ -4,7 +4,6 @@ import ThemeSwal from '../utils/swal.js';
 
 export const SYNC_MODULES = [
     { key: 'employees', label: 'Employees', icon: 'mdi mdi-account-group', endpoint: 'push-employees' },
-    { key: 'work_schedules', label: 'Work Schedules', icon: 'mdi mdi-calendar-account', endpoint: 'push-work-schedules' },
     { key: 'attendances', label: 'Attendances', icon: 'mdi mdi-fingerprint', endpoint: 'push-attendances' },
 ];
 
@@ -22,10 +21,10 @@ export default function useSync() {
         is_central.value = !!data.is_central;
     };
 
-    const getLogs = async (page = 1) => {
+    const getLogs = async (page = 1, module = '') => {
         is_loading.value = true;
         try {
-            const { data } = await axios.get('/api/sync/logs?page=' + page);
+            const { data } = await axios.get('/api/sync/logs', { params: { page, module: module || undefined } });
             logs.value = data.data;
             pagination.value = {
                 current_page: data.current_page,

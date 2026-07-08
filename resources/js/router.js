@@ -17,8 +17,8 @@ import WorkScheduleList from './components/work-schedules/Index.vue';
 import WorkTimeRuleList from './components/settings/work-time-rules/Index.vue';
 import UserList from './components/settings/users/Index.vue';
 import SyncCenter from './components/settings/sync/Index.vue';
-import EmployeeListReport from './components/reports/EmployeeList.vue';
 import DtrReport from './components/reports/Dtr.vue';
+import LogbookReport from './components/reports/Logbook.vue';
 
 const routes = [
   { path: '/login', component: LoginPage, meta: { guest: true } },
@@ -40,8 +40,8 @@ const routes = [
   { path: '/settings/work-time-rules', component: WorkTimeRuleList, meta: { requiresAuth: true } },
   { path: '/settings/accounts', component: UserList, meta: { requiresAuth: true } },
   { path: '/data-sync', component: SyncCenter, meta: { requiresAuth: true } },
-  { path: '/reports/employees', component: EmployeeListReport, meta: { requiresAuth: true } },
   { path: '/reports/dtr', component: DtrReport, meta: { requiresAuth: true } },
+  { path: '/reports/logbook', component: LogbookReport, meta: { requiresAuth: true } },
 ];
 
 const router = createRouter({

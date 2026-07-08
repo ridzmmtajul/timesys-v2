@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import EmployeeForm from './Form/Create.vue';
 import ScheduleCalendar from './ScheduleCalendar.vue';
+import ExportModal from './ExportModal.vue';
 import ThemeSwal, { swalClass } from '../../utils/swal.js';
 
 const employees      = ref([]);
@@ -19,6 +20,7 @@ const options        = ref({ offices: [], employment_types: [], positions: [], o
 const showCalendar   = ref(false);
 const calendarEmployee = ref(null);
 const syncing        = ref(false);
+const showExport     = ref(false);
 
 let searchTimeout = null;
 
@@ -140,6 +142,14 @@ function closeScheduleCalendar() {
   calendarEmployee.value = null;
 }
 
+function openExportModal() {
+  showExport.value = true;
+}
+
+function closeExportModal() {
+  showExport.value = false;
+}
+
 async function toggleEmployeeStatus(emp) {
   const action = emp.is_active ? 'deactivate' : 'activate';
   const isDeactivating = emp.is_active;
@@ -249,9 +259,9 @@ onMounted(() => {
           />
         </div>
 
-        <button class="btn-sync" :disabled="syncing" @click="syncToServer">
-          <i :class="syncing ? 'fas fa-circle-notch fa-spin' : 'fas fa-cloud-upload-alt'"></i>
-          {{ syncing ? 'Syncing...' : 'Sync to Server' }}
+        <button class="btn-export" @click="openExportModal">
+          <i class="fas fa-file-export"></i>
+          Export
         </button>
 
         <button class="btn-primary" @click="openCreateModal">
@@ -380,6 +390,12 @@ onMounted(() => {
       :show="showCalendar"
       :employee="calendarEmployee"
       @close="closeScheduleCalendar"
+    />
+
+    <ExportModal
+      :show="showExport"
+      :offices="options.offices"
+      @close="closeExportModal"
     />
   </section>
 </template>
@@ -512,6 +528,26 @@ onMounted(() => {
 .btn-sync:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+/* ── Export button ── */
+.btn-export {
+  border: 1px solid rgba(31, 191, 184, 0.35);
+  padding: 11px 16px;
+  border-radius: 999px;
+  background: rgba(31, 191, 184, 0.1);
+  color: #75e7d7;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.btn-export:hover {
+  background: rgba(31, 191, 184, 0.2);
 }
 
 /* ── Primary button ── */

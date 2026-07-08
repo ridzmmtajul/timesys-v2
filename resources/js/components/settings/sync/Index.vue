@@ -1,8 +1,20 @@
 <script setup>
-import { onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import useSync, { SYNC_MODULES } from '../../../composables/sync.js';
 
 const { pendingCounts, logs, pagination, is_loading, syncingAll, is_central, getPendingCounts, getLogs, pushAll } = useSync();
+
+const moduleFilter = ref('');
+
+const filterOptions = [
+    { value: '', label: 'All Modules' },
+    { value: 'employees', label: 'Employees' },
+    { value: 'attendances', label: 'Attendances' },
+];
+
+function applyFilter() {
+    getLogs(1, moduleFilter.value);
+}
 
 function formatDate(value) {
     if (!value) return '—';
@@ -18,7 +30,7 @@ function statusLabel(status) {
 }
 
 function goToPage(page) {
-    getLogs(page);
+    getLogs(page, moduleFilter.value);
 }
 
 onMounted(() => {
@@ -54,6 +66,19 @@ onMounted(() => {
         </header>
 
         <div class="surface">
+            <div class="filter-bar">
+                <label class="filter-label" for="sync-module-filter">
+                    <v-icon icon="mdi-filter-outline" size="14" />
+                    Filter
+                </label>
+                <div class="rpt-select-wrap filter-select-wrap">
+                    <select id="sync-module-filter" v-model="moduleFilter" class="rpt-select" @change="applyFilter">
+                        <option v-for="opt in filterOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    </select>
+                    <v-icon icon="mdi-chevron-down" size="15" class="rpt-select-chevron" />
+                </div>
+            </div>
+
             <div v-if="is_loading" class="loading-state">
                 <v-icon icon="mdi-loading mdi-spin" size="30" />
                 <p>Loading sync logs...</p>
@@ -64,6 +89,7 @@ onMounted(() => {
                     <thead>
                         <tr>
                             <th>Module</th>
+                            <th>Synced From</th>
                             <th>Direction</th>
                             <th>Status</th>
                             <th>Synced</th>
@@ -76,6 +102,7 @@ onMounted(() => {
                     <tbody>
                         <tr v-for="log in logs" :key="log.id">
                             <td><span class="module-name">{{ log.module }}</span></td>
+                            <td class="muted">{{ log.synced_from || '—' }}</td>
                             <td class="muted">{{ log.direction }}</td>
                             <td>
                                 <span class="status-badge" :class="`status-${log.status}`">
@@ -90,7 +117,7 @@ onMounted(() => {
                             <td class="muted">{{ formatDate(log.created_at) }}</td>
                         </tr>
                         <tr v-if="!logs.length">
-                            <td colspan="8" class="empty-table">
+                            <td colspan="9" class="empty-table">
                                 <v-icon icon="mdi-cloud-off-outline" size="30" />
                                 <p>No sync activity yet</p>
                                 <span v-if="!is_central">Click "Sync All" to send local records to the central server</span>
@@ -236,6 +263,68 @@ onMounted(() => {
     border: 1px solid rgba(121, 146, 207, 0.16);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 24px 60px rgba(2, 7, 20, 0.28);
     padding: 14px;
+}
+
+/* ── Filter bar ── */
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.filter-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #8aa0d7;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.filter-select-wrap {
+    max-width: 200px;
+}
+
+.rpt-select-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.rpt-select-icon,
+.rpt-select-chevron {
+    position: absolute;
+    right: 12px;
+    color: #5a78b0;
+    pointer-events: none;
+}
+
+.rpt-select {
+    width: 100%;
+    padding: 9px 34px 9px 12px;
+    background: rgba(17, 27, 56, 0.8);
+    border: 1px solid rgba(121, 146, 207, 0.2);
+    border-radius: 10px;
+    color: #e2e8f0;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+    transition: border-color 0.18s;
+}
+
+.rpt-select:focus {
+    border-color: rgba(31, 191, 184, 0.5);
+}
+
+.rpt-select option {
+    background: #0e1c3a;
+    color: #e2e8f0;
 }
 
 /* ── Loading state ── */

@@ -15,6 +15,7 @@ class Attendance extends Model
         'serial_no',
         'post_no',
         'void',
+        'synced_from',
     ];
 
     protected $casts = [

@@ -7,6 +7,10 @@
 
         <title>{{ config('app.name', 'TimeSync') }}</title>
 
+        <link rel="icon" type="image/png" href="/images/logo.png">
+        <link rel="shortcut icon" type="image/png" href="/images/logo.png">
+        <link rel="apple-touch-icon" href="/images/logo.png">
+
         <!-- Font Awesome CDN -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
         

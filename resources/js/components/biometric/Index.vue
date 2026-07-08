@@ -1,6 +1,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
 import axios from 'axios';
+import ThemeSwal, { swalClass } from '../../utils/swal.js';
 
 const emit = defineEmits(['device-action']);
 
@@ -12,6 +13,11 @@ const saving = ref(false);
 const openDeviceMenuId = ref(null);
 const menuPosition = reactive({ top: 0, left: 0 });
 const newDevice = reactive({ device_name: '', ip_address: '' });
+
+const showUpdateModal = ref(false);
+const updating = ref(false);
+const updateTarget = ref(null);
+const updateForm = reactive({ device_name: '', ip_address: '', product_name: '' });
 
 const totalUsers = computed(() => devices.value.reduce((sum, d) => sum + Number(d.user_count || 0), 0));
 const totalLogs = computed(() => devices.value.reduce((sum, d) => sum + Number(d.log_count || 0), 0));
@@ -44,7 +50,7 @@ async function fetchDevices() {
     devices.value = data.data || [];
   } catch (error) {
     console.error(error);
-    alert('Unable to load biometric devices.');
+    ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: 'Unable to load biometric devices.' });
   } finally {
     loading.value = false;
   }
@@ -67,11 +73,11 @@ function cancelForm() {
 
 async function addDevice() {
   if (!newDevice.device_name.trim()) {
-    alert('Please enter a device name.');
+    ThemeSwal.fire({ icon: 'warning', title: 'Missing information', text: 'Please enter a device name.' });
     return;
   }
   if (!newDevice.ip_address.trim()) {
-    alert('Please enter the IP address.');
+    ThemeSwal.fire({ icon: 'warning', title: 'Missing information', text: 'Please enter the IP address.' });
     return;
   }
   saving.value = true;
@@ -82,20 +88,41 @@ async function addDevice() {
     showForm.value = false;
   } catch (error) {
     console.error(error);
-    alert(error?.response?.data?.message || 'Unable to connect to biometric device.');
+    ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: error?.response?.data?.message || 'Unable to connect to biometric device.' });
   } finally {
     saving.value = false;
   }
 }
 
 async function removeDevice(device) {
-  if (!confirm('Remove this biometric device?')) return;
+  const result = await ThemeSwal.fire({
+    title: 'Are you sure?',
+    text: `Remove "${device.device_name}"? You won't be able to revert this!`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Yes, delete it!',
+    customClass: {
+      ...swalClass,
+      confirmButton: 'ts-swal-btn ts-swal-btn--danger',
+    },
+  });
+  if (!result.value) return;
+
   try {
-    await axios.delete(`/api/biometrics/${device.id}`);
+    const { data } = await axios.delete(`/api/biometrics/${device.id}`);
     await fetchDevices();
+    ThemeSwal.fire({
+      title: 'Deleted',
+      text: data?.message || 'Biometric device removed.',
+      icon: 'success',
+    });
   } catch (error) {
     console.error(error);
-    alert('Unable to remove biometric device.');
+    ThemeSwal.fire({
+      icon: 'error',
+      title: 'Oops...',
+      text: error?.response?.data?.message || 'Unable to remove biometric device.',
+    });
   }
 }
 
@@ -105,7 +132,7 @@ async function connectDevice(device) {
     syncDeviceFromResponse(data?.data);
   } catch (error) {
     console.error(error);
-    alert(error?.response?.data?.message || 'Unable to connect biometric device.');
+    ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: error?.response?.data?.message || 'Unable to connect biometric device.' });
   }
 }
 
@@ -115,7 +142,7 @@ async function disconnectDevice(device) {
     syncDeviceFromResponse(data?.data);
   } catch (error) {
     console.error(error);
-    alert(error?.response?.data?.message || 'Unable to disconnect biometric device.');
+    ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: error?.response?.data?.message || 'Unable to disconnect biometric device.' });
   }
 }
 
@@ -136,37 +163,59 @@ async function downloadLog(device) {
     window.URL.revokeObjectURL(url);
   } catch (error) {
     console.error(error);
-    alert(error?.response?.data?.message || 'Unable to download biometric logs.');
+    ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: error?.response?.data?.message || 'Unable to download biometric logs.' });
   }
 }
 
-async function updateDevice(device) {
-  const deviceName = prompt('Update device name', device.device_name || '');
-  if (deviceName === null) return;
-  const ipAddress = prompt('Update IP address', device.ip_address || '');
-  if (ipAddress === null) return;
-  const productName = prompt('Update product name', device.product_name || '');
-  if (productName === null) return;
+function updateDevice(device) {
+  updateTarget.value = device;
+  updateForm.device_name = device.device_name || '';
+  updateForm.ip_address = device.ip_address || '';
+  updateForm.product_name = device.product_name || '';
+  showUpdateModal.value = true;
+}
+
+function closeUpdateModal() {
+  if (updating.value) return;
+  showUpdateModal.value = false;
+  updateTarget.value = null;
+}
+
+async function submitUpdateDevice() {
+  if (!updateTarget.value) return;
+  if (!updateForm.device_name.trim()) {
+    ThemeSwal.fire({ icon: 'warning', title: 'Missing information', text: 'Please enter a device name.' });
+    return;
+  }
+  if (!updateForm.ip_address.trim()) {
+    ThemeSwal.fire({ icon: 'warning', title: 'Missing information', text: 'Please enter the IP address.' });
+    return;
+  }
+  updating.value = true;
   try {
-    const { data } = await axios.put(`/api/biometrics/${device.id}`, {
-      device_name: deviceName.trim(),
-      ip_address: ipAddress.trim(),
-      product_name: productName.trim()
+    const { data } = await axios.put(`/api/biometrics/${updateTarget.value.id}`, {
+      device_name: updateForm.device_name.trim(),
+      ip_address: updateForm.ip_address.trim(),
+      product_name: updateForm.product_name.trim()
     });
     syncDeviceFromResponse(data?.data);
+    showUpdateModal.value = false;
+    updateTarget.value = null;
   } catch (error) {
     console.error(error);
-    alert(error?.response?.data?.message || 'Unable to update biometric device.');
+    ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: error?.response?.data?.message || 'Unable to update biometric device.' });
+  } finally {
+    updating.value = false;
   }
 }
 
 async function syncTime(device) {
   try {
     const { data } = await axios.post(`/api/biometrics/${device.id}/sync-time`);
-    alert(data?.message || 'Biometric device time synced.');
+    ThemeSwal.fire({ icon: 'success', title: 'Synced', text: data?.message || 'Biometric device time synced.' });
   } catch (error) {
     console.error(error);
-    alert(error?.response?.data?.message || 'Unable to sync biometric device time.');
+    ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: error?.response?.data?.message || 'Unable to sync biometric device time.' });
   }
 }
 
@@ -176,7 +225,7 @@ async function refreshDevice(device) {
     syncDeviceFromResponse(data?.data);
   } catch (error) {
     console.error(error);
-    alert(error?.response?.data?.message || 'Unable to refresh biometric device data.');
+    ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: error?.response?.data?.message || 'Unable to refresh biometric device data.' });
   }
 }
 
@@ -469,6 +518,91 @@ onBeforeUnmount(() => {
         <span><i class="fas fa-check-circle"></i> {{ devices.length }} device(s) connected</span>
       </footer>
     </div>
+
+    <v-dialog v-model="showUpdateModal" max-width="480px" persistent>
+      <div class="lib-modal">
+        <div class="lib-modal__header">
+          <div class="lib-modal__header-left">
+            <div class="lib-modal__icon">
+              <v-icon icon="mdi-fingerprint" size="18" />
+            </div>
+            <div>
+              <p class="lib-modal__eyebrow">Biometric Devices</p>
+              <h6 class="lib-modal__title">Update Device</h6>
+            </div>
+          </div>
+          <button class="lib-modal__close" :disabled="updating" @click="closeUpdateModal">
+            <v-icon icon="mdi-close" size="16" />
+          </button>
+        </div>
+
+        <div class="lib-modal__body">
+          <div class="lib-modal__field">
+            <label class="lib-modal__label">
+              Device Name
+              <span class="lib-modal__required">*</span>
+            </label>
+            <div class="lib-modal__input-wrap">
+              <v-icon icon="mdi-fingerprint" size="16" class="lib-modal__input-icon" />
+              <input
+                v-model.trim="updateForm.device_name"
+                type="text"
+                placeholder="Enter device name"
+                class="lib-modal__input"
+                @keyup.enter="submitUpdateDevice"
+                autofocus
+              />
+            </div>
+          </div>
+
+          <div class="lib-modal__field">
+            <label class="lib-modal__label">
+              IP Address
+              <span class="lib-modal__required">*</span>
+            </label>
+            <div class="lib-modal__input-wrap">
+              <v-icon icon="mdi-network-outline" size="16" class="lib-modal__input-icon" />
+              <input
+                v-model.trim="updateForm.ip_address"
+                type="text"
+                placeholder="e.g. 192.168.1.10"
+                class="lib-modal__input"
+                @keyup.enter="submitUpdateDevice"
+              />
+            </div>
+          </div>
+
+          <div class="lib-modal__field">
+            <label class="lib-modal__label">Product Name</label>
+            <div class="lib-modal__input-wrap">
+              <v-icon icon="mdi-package-variant-closed" size="16" class="lib-modal__input-icon" />
+              <input
+                v-model.trim="updateForm.product_name"
+                type="text"
+                placeholder="Optional product name"
+                class="lib-modal__input"
+                @keyup.enter="submitUpdateDevice"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="lib-modal__footer">
+          <button class="lib-modal__btn lib-modal__btn--cancel" :disabled="updating" @click="closeUpdateModal">
+            Cancel
+          </button>
+          <button
+            class="lib-modal__btn lib-modal__btn--save"
+            :disabled="!updateForm.device_name?.trim() || !updateForm.ip_address?.trim() || updating"
+            @click="submitUpdateDevice"
+          >
+            <v-icon v-if="updating" icon="mdi-loading" size="14" class="lib-modal__spinner" />
+            <v-icon v-else icon="mdi-content-save-outline" size="14" />
+            {{ updating ? 'Saving...' : 'Update' }}
+          </button>
+        </div>
+      </div>
+    </v-dialog>
   </section>
 </template>
 

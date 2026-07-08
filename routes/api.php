@@ -126,6 +126,8 @@ Route::middleware(['auth:sanctum', 'extend.token'])->group(function () {
     Route::delete('/titles/{id}', [TitleController::class, 'destroy']);
 
     Route::get('/reports/employee-list', [ReportController::class, 'employeeList']);
+    Route::get('/reports/logbook', [ReportController::class, 'logbook']);
+    Route::get('/reports/logbook-export', [ReportController::class, 'logbookExport']);
 
     Route::get('/dtr/options', [DtrController::class, 'options']);
     Route::post('/dtr/generate', [DtrController::class, 'generate']);

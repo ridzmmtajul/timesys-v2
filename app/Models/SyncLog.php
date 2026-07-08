@@ -11,6 +11,7 @@ class SyncLog extends Model
 
     protected $fillable = [
         'module',
+        'synced_from',
         'direction',
         'status',
         'total_records',

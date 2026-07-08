@@ -114,6 +114,21 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+        // Central biometric attendance server (AttendanceLog: USERINFO / CHECKINOUT).
+        // Read-and-insert only — never migrated, never updated in place.
+        'sqlsrv2' => [
+            'driver' => env('DB_CONNECTION_2', 'sqlsrv'),
+            'url' => env('DB_URL_2'),
+            'host' => env('DB_HOST_2', 'localhost'),
+            'port' => env('DB_PORT_2', '1433'),
+            'database' => env('DB_DATABASE_2', 'AttendanceLog'),
+            'username' => env('DB_USERNAME_2', 'sa'),
+            'password' => env('DB_PASSWORD_2', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+        ],
+
     ],
 
     /*

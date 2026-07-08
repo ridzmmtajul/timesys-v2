@@ -24,6 +24,7 @@ class WorkSchedule extends Model
         'schedule_for',
         'days',
         'no_lunch_gap',
+        'synced_from',
     ];
 
     protected $casts = [

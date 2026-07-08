@@ -679,3 +679,44 @@ html.light-mode .btn-cancel:hover:not(:disabled) {
   background: #f1f5f9 !important;
   color: #0f172a !important;
 }
+
+/* ── Light Mode — Data Sync ── */
+html.light-mode .sync-dashboard { color: #0f172a !important; }
+
+html.light-mode .filter-label { color: #64748b !important; }
+
+html.light-mode .rpt-select-wrap .rpt-select-icon,
+html.light-mode .rpt-select-wrap .rpt-select-chevron { color: #94a3b8 !important; }
+html.light-mode .rpt-select {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+html.light-mode .rpt-select:focus { border-color: rgba(31, 191, 184, 0.5) !important; }
+html.light-mode .rpt-select option {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html.light-mode .sync-table { background: #ffffff !important; }
+html.light-mode .sync-table thead { background: #f8fafc !important; }
+html.light-mode .sync-table th,
+html.light-mode .sync-table td { border-color: #f1f5f9 !important; }
+html.light-mode .sync-table th { color: #64748b !important; }
+html.light-mode .sync-table td { color: #0f172a !important; }
+html.light-mode .sync-table tbody tr:hover { background: rgba(31, 191, 184, 0.05) !important; }
+html.light-mode .module-name { color: #0f172a !important; }
+html.light-mode .muted { color: #64748b !important; }
+
+html.light-mode .status-success {
+  background: rgba(31, 191, 184, 0.12) !important;
+  color: #0d7a73 !important;
+}
+html.light-mode .status-partial {
+  background: rgba(240, 180, 41, 0.14) !important;
+  color: #a16207 !important;
+}
+html.light-mode .status-failed {
+  background: rgba(220, 60, 60, 0.1) !important;
+  color: #dc2626 !important;
+}

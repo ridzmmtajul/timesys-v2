@@ -27,6 +27,7 @@ class Employee extends Model
         'image',
         'title_id',
         'signature',
+        'synced_from',
     ];
 
     protected $casts = [

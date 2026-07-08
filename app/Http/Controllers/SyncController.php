@@ -171,16 +171,17 @@ class SyncController extends Controller
             ]);
         }
 
-        $payload = $records->map($mapper)->values()->all();
+        $syncedFrom = config('app.name');
+        $payload    = $records->map($mapper)->values()->all();
 
         try {
             $response = Http::withToken($apiKey)
                 ->timeout(60)
-                ->post(rtrim($centralUrl, '/') . $endpoint, [$payloadKey => $payload]);
+                ->post(rtrim($centralUrl, '/') . $endpoint, [$payloadKey => $payload, 'synced_from' => $syncedFrom]);
         } catch (\Throwable $e) {
             $message = 'Unable to reach the central server.';
 
-            $this->recordLog($payloadKey, 'push', 'failed', ['total' => $records->count()], [$message], $message);
+            $this->recordLog($payloadKey, 'push', 'failed', ['total' => $records->count()], [$message], $message, $syncedFrom);
 
             return response()->json([
                 'success' => false,
@@ -191,7 +192,7 @@ class SyncController extends Controller
         if ($response->failed()) {
             $message = 'Central server returned an error.';
 
-            $this->recordLog($payloadKey, 'push', 'failed', ['total' => $records->count()], [$message], $message);
+            $this->recordLog($payloadKey, 'push', 'failed', ['total' => $records->count()], [$message], $message, $syncedFrom);
 
             return response()->json([
                 'success' => false,
@@ -221,7 +222,7 @@ class SyncController extends Controller
             'synced'   => $synced,
             'existing' => $existing,
             'skipped'  => $skipped,
-        ], $errors, $result['message'] ?? null);
+        ], $errors, $result['message'] ?? null, $syncedFrom);
 
         return response()->json($result);
     }
@@ -231,13 +232,14 @@ class SyncController extends Controller
 
     public function receiveEmployees(Request $request)
     {
-        $employees = $request->input('employees', []);
-        $synced    = 0;
-        $skipped   = 0;
-        $existing  = 0;
-        $errors    = [];
-        $seenNos   = [];
-        $seenNames = [];
+        $employees  = $request->input('employees', []);
+        $syncedFrom = $request->input('synced_from');
+        $synced     = 0;
+        $skipped    = 0;
+        $existing   = 0;
+        $errors     = [];
+        $seenNos    = [];
+        $seenNames  = [];
 
         foreach ($employees as $data) {
             try {
@@ -295,6 +297,7 @@ class SyncController extends Controller
                     'employment_type_id'   => $this->resolveEmploymentType($data['employment_type_name'] ?? null),
                     'position_id'          => $this->resolvePosition($data['position_name'] ?? null),
                     'office_division_id'   => $this->resolveOfficeDivision($data['office_division_name'] ?? null, $data['office_division_code'] ?? null, $officeId),
+                    'synced_from'          => $syncedFrom,
                 ]);
 
                 $synced++;
@@ -304,7 +307,7 @@ class SyncController extends Controller
             }
         }
 
-        return $this->respondReceive('employees', $synced, $existing, $skipped, $errors, 'employee(s)');
+        return $this->respondReceive('employees', $synced, $existing, $skipped, $errors, 'employee(s)', $syncedFrom);
     }
 
     public function receiveOffices(Request $request)
@@ -399,11 +402,12 @@ class SyncController extends Controller
 
     public function receiveWorkSchedules(Request $request)
     {
-        $items    = $request->input('work_schedules', []);
-        $synced   = 0;
-        $existing = 0;
-        $skipped  = 0;
-        $errors   = [];
+        $items      = $request->input('work_schedules', []);
+        $syncedFrom = $request->input('synced_from');
+        $synced     = 0;
+        $existing   = 0;
+        $skipped    = 0;
+        $errors     = [];
 
         foreach ($items as $data) {
             try {
@@ -440,6 +444,7 @@ class SyncController extends Controller
                     'schedule_for'     => $data['schedule_for'] ?? null,
                     'days'             => $data['days'] ?? [],
                     'no_lunch_gap'     => $data['no_lunch_gap'] ?? false,
+                    'synced_from'      => $syncedFrom,
                 ]);
 
                 $synced++;
@@ -449,16 +454,17 @@ class SyncController extends Controller
             }
         }
 
-        return $this->respondReceive('work_schedules', $synced, $existing, $skipped, $errors, 'work schedule(s)');
+        return $this->respondReceive('work_schedules', $synced, $existing, $skipped, $errors, 'work schedule(s)', $syncedFrom);
     }
 
     public function receiveAttendances(Request $request)
     {
-        $items    = $request->input('attendances', []);
-        $synced   = 0;
-        $existing = 0;
-        $skipped  = 0;
-        $errors   = [];
+        $items      = $request->input('attendances', []);
+        $syncedFrom = $request->input('synced_from');
+        $synced     = 0;
+        $existing   = 0;
+        $skipped    = 0;
+        $errors     = [];
 
         foreach ($items as $data) {
             try {
@@ -488,6 +494,7 @@ class SyncController extends Controller
                     'serial_no'   => $data['serial_no'] ?? null,
                     'post_no'     => $postNo,
                     'void'        => $data['void'] ?? false,
+                    'synced_from' => $syncedFrom,
                 ]);
 
                 $synced++;
@@ -497,7 +504,7 @@ class SyncController extends Controller
             }
         }
 
-        return $this->respondReceive('attendances', $synced, $existing, $skipped, $errors, 'attendance record(s)');
+        return $this->respondReceive('attendances', $synced, $existing, $skipped, $errors, 'attendance record(s)', $syncedFrom);
     }
 
     // ── SYNC LOGS ────────────────────────────────────────────────────────────
@@ -515,7 +522,7 @@ class SyncController extends Controller
 
     // ── HELPERS ──────────────────────────────────────────────────────────────
 
-    private function respondReceive(string $module, int $synced, int $existing, int $skipped, array $errors, string $label): JsonResponse
+    private function respondReceive(string $module, int $synced, int $existing, int $skipped, array $errors, string $label, ?string $syncedFrom = null): JsonResponse
     {
         $status = 'success';
         if (!empty($errors)) {
@@ -529,7 +536,7 @@ class SyncController extends Controller
             'synced'   => $synced,
             'existing' => $existing,
             'skipped'  => $skipped,
-        ], $errors, $message);
+        ], $errors, $message, $syncedFrom);
 
         return response()->json([
             'success'  => $status !== 'failed',
@@ -541,10 +548,11 @@ class SyncController extends Controller
         ]);
     }
 
-    private function recordLog(string $module, string $direction, string $status, array $counts, array $errors = [], ?string $message = null): void
+    private function recordLog(string $module, string $direction, string $status, array $counts, array $errors = [], ?string $message = null, ?string $syncedFrom = null): void
     {
         SyncLog::create([
             'module'         => $module,
+            'synced_from'    => $syncedFrom,
             'direction'      => $direction,
             'status'         => $status,
             'total_records'  => $counts['total'] ?? 0,
