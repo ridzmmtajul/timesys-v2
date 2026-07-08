@@ -60,6 +60,35 @@ const clearOffice = () => {
 
 const closeOnOutside = (e) => {
     if (officeRef.value && !officeRef.value.contains(e.target)) officeOpen.value = false;
+    if (divisionRef.value && !divisionRef.value.contains(e.target)) divisionOpen.value = false;
+};
+
+// ── Office Division searchable dropdown ────────────────────────
+const divisionRef    = ref(null);
+const divisionOpen   = ref(false);
+const divisionSearch = ref('');
+
+const selectedDivisionName = computed(() =>
+    divisions.value.find(d => String(d.id) === String(filters.value.office_division_id))?.name || ''
+);
+
+const filteredDivisionList = computed(() => {
+    const q = divisionSearch.value.toLowerCase();
+    return q
+        ? availableDivisions.value.filter(d => d.name.toLowerCase().includes(q))
+        : availableDivisions.value;
+});
+
+const selectDivision = (d) => {
+    filters.value.office_division_id = String(d.id);
+    divisionOpen.value = false;
+    divisionSearch.value = '';
+};
+
+const clearDivision = () => {
+    filters.value.office_division_id = '';
+    divisionOpen.value = false;
+    divisionSearch.value = '';
 };
 
 const getOptions = async () => {
@@ -192,15 +221,44 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', closeOnOutside))
                 <!-- Office Division Filter -->
                 <div class="rpt-field">
                     <label class="rpt-label">Office Division</label>
-                    <div class="rpt-select-wrap">
-                        <v-icon icon="mdi-sitemap" size="15" class="rpt-select-icon" />
-                        <select v-model="filters.office_division_id" class="rpt-select">
-                            <option value="">All Divisions</option>
-                            <option v-for="division in availableDivisions" :key="division.id" :value="division.id">
-                                {{ division.name }}
-                            </option>
-                        </select>
-                        <v-icon icon="mdi-chevron-down" size="15" class="rpt-select-chevron" />
+                    <div class="cs-wrap" ref="divisionRef">
+                        <button
+                            type="button"
+                            class="cs-trigger"
+                            :class="{ 'cs-trigger--open': divisionOpen }"
+                            @click="divisionOpen = !divisionOpen"
+                        >
+                            <v-icon icon="mdi-sitemap" size="15" class="cs-icon" />
+                            <span class="cs-val" :class="{ 'cs-ph': !filters.office_division_id }">
+                                {{ selectedDivisionName || 'All Divisions' }}
+                            </span>
+                            <button v-if="filters.office_division_id" type="button" class="cs-x" @click.stop="clearDivision">
+                                <v-icon icon="mdi-close" size="12" />
+                            </button>
+                            <v-icon
+                                icon="mdi-chevron-down" size="14"
+                                class="cs-chevron"
+                                :class="{ 'cs-chevron--up': divisionOpen }"
+                            />
+                        </button>
+                        <div v-show="divisionOpen" class="cs-dropdown">
+                            <div class="cs-search-row">
+                                <v-icon icon="mdi-magnify" size="13" class="cs-search-icon" />
+                                <input v-model="divisionSearch" class="cs-search" placeholder="Search division…" />
+                            </div>
+                            <div class="cs-list">
+                                <div
+                                    v-for="division in filteredDivisionList" :key="division.id"
+                                    class="cs-opt"
+                                    :class="{ 'cs-opt--active': String(filters.office_division_id) === String(division.id) }"
+                                    @click="selectDivision(division)"
+                                >
+                                    <span class="cs-opt-name">{{ division.name }}</span>
+                                    <v-icon v-if="String(filters.office_division_id) === String(division.id)" icon="mdi-check" size="13" class="cs-tick" />
+                                </div>
+                                <div v-if="!filteredDivisionList.length" class="cs-empty">No divisions found</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -209,7 +267,7 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', closeOnOutside))
                     <label class="rpt-label">Date</label>
                     <div class="rpt-select-wrap">
                         <v-icon icon="mdi-calendar" size="15" class="rpt-select-icon" />
-                        <input v-model="filters.date" type="date" class="rpt-select rpt-select--input" />
+                        <input v-model="filters.date" type="date" class="rpt-select rpt-select--input" @change="getLogbook" />
                     </div>
                 </div>
             </div>
@@ -656,11 +714,11 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', closeOnOutside))
     font-weight: 700;
 }
 
-.lbk-th-name {
+.lbk-table th.lbk-th-name {
     text-align: left;
 }
 
-.lbk-name {
+.lbk-table td.lbk-name {
     text-align: left;
     color: #c8d6f0;
 }
