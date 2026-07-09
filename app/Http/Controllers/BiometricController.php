@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Attendance;
 use App\Models\Biometric;
+use App\Models\BiometricLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -13,9 +14,45 @@ class BiometricController extends Controller
 {
     public function index()
     {
+        $devices = Biometric::orderBy('device_name')->get();
+
+        $devices->each(function (Biometric $device) {
+            $liveStatus = $this->pingDevice($device);
+
+            if ($device->status !== $liveStatus) {
+                $device->update(['status' => $liveStatus]);
+            }
+        });
+
+        $lastSyncedByDevice = BiometricLog::query()
+            ->where('status', 'success')
+            ->where('action', '!=', 'disconnect')
+            ->whereNotNull('biometric_id')
+            ->selectRaw('biometric_id, MAX(created_at) as last_synced_at')
+            ->groupBy('biometric_id')
+            ->pluck('last_synced_at', 'biometric_id');
+
+        $devices->each(function (Biometric $device) use ($lastSyncedByDevice) {
+            $device->last_synced_at = $lastSyncedByDevice->get($device->id);
+        });
+
         return response()->json([
             'success' => true,
-            'data' => Biometric::orderBy('device_name')->get(),
+            'data' => $devices,
+        ]);
+    }
+
+    public function logs(Request $request)
+    {
+        $query = BiometricLog::query()->latest();
+
+        if ($request->filled('biometric_id')) {
+            $query->where('biometric_id', $request->biometric_id);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $query->limit((int) $request->input('limit', 10))->get(),
         ]);
     }
 
@@ -26,15 +63,22 @@ class BiometricController extends Controller
             'ip_address' => ['required', 'ip'],
         ]);
 
-        $details = $this->readDeviceInfo(
-            $validated['ip_address'],
-            (int) $request->input('port', 4370)
-        );
+        try {
+            $details = $this->readDeviceInfo(
+                $validated['ip_address'],
+                (int) $request->input('port', 4370)
+            );
+        } catch (\Throwable $e) {
+            $this->logAction($request, null, 'add-device', 'failed', $e->getMessage(), [], $validated['device_name']);
+            throw $e;
+        }
 
         $biometric = Biometric::updateOrCreate(
             ['device_name' => $validated['device_name']],
             array_merge($validated, $details)
         );
+
+        $this->logAction($request, $biometric, 'add-device', 'success', 'Biometric device connected successfully.', $details);
 
         return response()->json([
             'success' => true,
@@ -61,6 +105,8 @@ class BiometricController extends Controller
 
         $biometric->update($validated);
 
+        $this->logAction($request, $biometric, 'update-device', 'success', 'Biometric device updated successfully.');
+
         return response()->json([
             'success' => true,
             'message' => 'Biometric device updated successfully.',
@@ -68,8 +114,10 @@ class BiometricController extends Controller
         ]);
     }
 
-    public function destroy(Biometric $biometric)
+    public function destroy(Request $request, Biometric $biometric)
     {
+        $this->logAction($request, $biometric, 'delete-device', 'success', 'Biometric device removed.');
+
         $biometric->delete();
 
         return response()->json([
@@ -78,7 +126,7 @@ class BiometricController extends Controller
         ]);
     }
 
-    public function connect(Biometric $biometric)
+    public function connect(Request $request, Biometric $biometric)
     {
         try {
             $details = $this->readDeviceInfo(
@@ -87,6 +135,8 @@ class BiometricController extends Controller
             );
 
             $biometric->update($details);
+
+            $this->logAction($request, $biometric, 'connect', 'success', 'Biometric device connected successfully.', $details);
 
             return response()->json([
                 'success' => true,
@@ -98,6 +148,8 @@ class BiometricController extends Controller
                 'status' => 'Disconnected',
             ]);
 
+            $this->logAction($request, $biometric, 'connect', 'failed', $e->getMessage());
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -107,11 +159,13 @@ class BiometricController extends Controller
     }
 
 
-    public function disconnect(Biometric $biometric)
+    public function disconnect(Request $request, Biometric $biometric)
     {
         $biometric->update([
             'status' => 'Disconnected',
         ]);
+
+        $this->logAction($request, $biometric, 'disconnect', 'success', 'Biometric device disconnected.');
 
         return response()->json([
             'success' => true,
@@ -120,7 +174,7 @@ class BiometricController extends Controller
         ]);
     }
 
-    public function refresh(Biometric $biometric)
+    public function refresh(Request $request, Biometric $biometric)
     {
         try {
             $details = $this->readDeviceInfo(
@@ -132,12 +186,16 @@ class BiometricController extends Controller
                 'device_name' => $biometric->device_name,
             ]));
 
+            $this->logAction($request, $biometric, 'refresh', 'success', 'Biometric data refreshed.', $details);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Biometric data refreshed.',
                 'data' => $biometric->fresh(),
             ]);
         } catch (\Throwable $e) {
+            $this->logAction($request, $biometric, 'refresh', 'failed', $e->getMessage());
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -145,11 +203,13 @@ class BiometricController extends Controller
         }
     }
 
-    public function syncTime(Biometric $biometric)
+    public function syncTime(Request $request, Biometric $biometric)
     {
         $zk = new ZKTeco($biometric->ip_address, (int) ($biometric->port ?: 4370));
 
         if (!$zk->connect()) {
+            $this->logAction($request, $biometric, 'sync-time', 'failed', 'Unable to connect to biometric device.');
+
             return response()->json([
                 'success' => false,
                 'message' => 'Unable to connect to biometric device.'
@@ -160,6 +220,8 @@ class BiometricController extends Controller
             $now = Carbon::now()->format('Y-m-d H:i:s');
             $zk->setTime($now);
 
+            $this->logAction($request, $biometric, 'sync-time', 'success', 'Biometric device time synced.', ['synced_at' => $now]);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Biometric device time synced.',
@@ -167,12 +229,15 @@ class BiometricController extends Controller
                     'synced_at' => $now,
                 ],
             ]);
+        } catch (\Throwable $e) {
+            $this->logAction($request, $biometric, 'sync-time', 'failed', $e->getMessage());
+            throw $e;
         } finally {
             $zk->disconnect();
         }
     }
 
-    public function downloadLog(Biometric $biometric)
+    public function downloadLog(Request $request, Biometric $biometric)
     {
         // ZKTeco reads over UDP; a single dropped packet makes the library retry
         // with a 60s socket timeout, which blows past PHP's default 30s limit.
@@ -181,6 +246,8 @@ class BiometricController extends Controller
         $zk = new ZKTeco($biometric->ip_address, (int) ($biometric->port ?: 4370));
 
         if (!$zk->connect()) {
+            $this->logAction($request, $biometric, 'download-log', 'failed', 'Unable to connect to biometric device.');
+
             return response()->json([
                 'success' => false,
                 'message' => 'Unable to connect to biometric device.'
@@ -250,14 +317,18 @@ class BiometricController extends Controller
             $newCount++;
         }
 
+        $meta = [
+            'total_downloaded' => $newCount,
+            'already_exists'   => $existingCount,
+            'total_logs'       => count($logs),
+        ];
+
+        $this->logAction($request, $biometric, 'download-log', 'success', 'Biometric logs saved to central server.', $meta);
+
         return response()->json([
             'success' => true,
             'message' => 'Biometric logs saved to central server.',
-            'data' => [
-                'total_downloaded' => $newCount,
-                'already_exists'   => $existingCount,
-                'total_logs'       => count($logs),
-            ],
+            'data' => $meta,
         ]);
     }
 
@@ -301,6 +372,49 @@ class BiometricController extends Controller
                 'success' => false,
                 'message' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    private function logAction(Request $request, ?Biometric $biometric, string $action, string $status, ?string $message = null, array $meta = [], ?string $deviceName = null): void
+    {
+        BiometricLog::create([
+            'biometric_id' => $biometric?->id,
+            'device_name'  => $biometric?->device_name ?? $deviceName,
+            'action'       => $action,
+            'status'       => $status,
+            'message'      => $message,
+            'meta'         => $meta,
+            'performed_by' => $request->user()?->username,
+        ]);
+    }
+
+    /**
+     * Live-check a device's reachability instead of trusting the last
+     * persisted status, which only updates on explicit connect/refresh calls.
+     */
+    protected function pingDevice(Biometric $device): string
+    {
+        if (!$device->ip_address) {
+            return 'Disconnected';
+        }
+
+        try {
+            $zk = new ZKTeco($device->ip_address, (int) ($device->port ?: 4370));
+
+            // The library defaults to a 60.5s socket receive timeout, which is
+            // fine for a deliberate connect but far too slow to check status
+            // for every device on every dashboard load.
+            socket_set_option($zk->_zkclient, SOL_SOCKET, SO_RCVTIMEO, ['sec' => 1, 'usec' => 500000]);
+
+            $connected = $zk->connect();
+
+            if ($connected) {
+                $zk->disconnect();
+            }
+
+            return $connected ? 'Connected' : 'Disconnected';
+        } catch (\Throwable $e) {
+            return 'Disconnected';
         }
     }
 

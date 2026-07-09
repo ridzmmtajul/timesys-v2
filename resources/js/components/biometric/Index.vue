@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 import ThemeSwal, { swalClass } from '../../utils/swal.js';
 
@@ -7,6 +7,7 @@ const emit = defineEmits(['device-action']);
 
 const viewMode = ref('card');
 const devices = ref([]);
+const searchQuery = ref('');
 const showForm = ref(false);
 const loading = ref(false);
 const saving = ref(false);
@@ -19,8 +20,120 @@ const updating = ref(false);
 const updateTarget = ref(null);
 const updateForm = reactive({ device_name: '', ip_address: '', product_name: '' });
 
+const showDownloadModal = ref(false);
+const downloadTarget = ref(null);
+const downloadProgress = ref(0);
+const downloadStatus = ref('connecting');
+const downloadResult = ref(null);
+const downloadErrorMsg = ref('');
+let downloadProgressTimer = null;
+let downloadStageTimer = null;
+
 const totalUsers = computed(() => devices.value.reduce((sum, d) => sum + Number(d.user_count || 0), 0));
 const totalLogs = computed(() => devices.value.reduce((sum, d) => sum + Number(d.log_count || 0), 0));
+
+const filteredDevices = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query) return devices.value;
+  return devices.value.filter((d) => (
+    (d.device_name || '').toLowerCase().includes(query) ||
+    (d.ip_address || '').toLowerCase().includes(query) ||
+    (d.product_name || '').toLowerCase().includes(query) ||
+    (d.serial_number || '').toLowerCase().includes(query)
+  ));
+});
+
+const recentLogs = ref([]);
+const showRecentLogs = ref(true);
+
+const ACTION_LABELS = {
+  'add-device': 'Device added',
+  'update-device': 'Device updated',
+  'delete-device': 'Device removed',
+  connect: 'Connected',
+  disconnect: 'Disconnected',
+  'download-log': 'Logs downloaded',
+  'sync-time': 'Time synced',
+  refresh: 'Data refreshed',
+};
+
+const ACTION_ICONS = {
+  'add-device': 'fa-plus',
+  'update-device': 'fa-pen',
+  'delete-device': 'fa-trash-alt',
+  connect: 'fa-plug',
+  disconnect: 'fa-power-off',
+  'download-log': 'fa-download',
+  'sync-time': 'fa-clock',
+  refresh: 'fa-sync-alt',
+};
+
+function logIcon(log) {
+  return ACTION_ICONS[log.action] || 'fa-circle-info';
+}
+
+function logLabel(log) {
+  const label = ACTION_LABELS[log.action] || log.action;
+  return log.status === 'failed' ? `${label} failed` : label;
+}
+
+function formatLogTime(timestamp) {
+  if (!timestamp) return '';
+  return new Date(timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function lastSyncedLabel(device) {
+  const timestamp = device?.last_synced_at;
+  if (!timestamp) return 'Never synced';
+
+  const diffMs = Date.now() - new Date(timestamp).getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return 'Synced just now';
+  if (minutes < 60) return `Synced ${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Synced ${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `Synced ${days}d ago`;
+}
+
+async function fetchRecentLogs() {
+  try {
+    const { data } = await axios.get('/api/biometrics/logs', { params: { limit: 3 } });
+    recentLogs.value = data.data || [];
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+const CARDS_PER_PAGE = 4;
+const carouselPage = ref(0);
+const totalCarouselPages = computed(() => Math.max(1, Math.ceil(filteredDevices.value.length / CARDS_PER_PAGE)));
+const pagedDevices = computed(() => {
+  const start = carouselPage.value * CARDS_PER_PAGE;
+  return filteredDevices.value.slice(start, start + CARDS_PER_PAGE);
+});
+
+function goToCarouselPage(page) {
+  carouselPage.value = Math.min(Math.max(page, 0), totalCarouselPages.value - 1);
+}
+
+function prevCarouselPage() {
+  goToCarouselPage(carouselPage.value - 1);
+}
+
+function nextCarouselPage() {
+  goToCarouselPage(carouselPage.value + 1);
+}
+
+watch(() => filteredDevices.value.length, () => {
+  if (carouselPage.value > totalCarouselPages.value - 1) {
+    carouselPage.value = totalCarouselPages.value - 1;
+  }
+});
+
+watch(searchQuery, () => {
+  carouselPage.value = 0;
+});
 
 function statusClass(status) {
   return String(status || '').toLowerCase() === 'connected' ? 'online' : 'offline';
@@ -53,6 +166,53 @@ async function fetchDevices() {
     ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: 'Unable to load biometric devices.' });
   } finally {
     loading.value = false;
+  }
+}
+
+const bulkRefreshing = ref(false);
+const bulkDownloading = ref(false);
+
+async function refreshAllDevices() {
+  if (!devices.value.length || bulkRefreshing.value) return;
+  bulkRefreshing.value = true;
+  try {
+    const results = await Promise.allSettled(
+      devices.value.map((device) => axios.post(`/api/biometrics/${device.id}/refresh`))
+    );
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    await fetchDevices();
+    await fetchRecentLogs();
+    ThemeSwal.fire({
+      icon: failed ? 'warning' : 'success',
+      title: failed ? 'Partially refreshed' : 'Refreshed',
+      text: failed
+        ? `${devices.value.length - failed} of ${devices.value.length} device(s) refreshed.`
+        : 'All devices refreshed.',
+    });
+  } finally {
+    bulkRefreshing.value = false;
+  }
+}
+
+async function downloadAllDevices() {
+  if (!devices.value.length || bulkDownloading.value) return;
+  bulkDownloading.value = true;
+  try {
+    const results = await Promise.allSettled(
+      devices.value.map((device) => axios.get(`/api/biometrics/${device.id}/download-log`))
+    );
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    await fetchDevices();
+    await fetchRecentLogs();
+    ThemeSwal.fire({
+      icon: failed ? 'warning' : 'success',
+      title: failed ? 'Partially downloaded' : 'Downloaded',
+      text: failed
+        ? `${devices.value.length - failed} of ${devices.value.length} device(s) downloaded.`
+        : 'Logs downloaded from all devices.',
+    });
+  } finally {
+    bulkDownloading.value = false;
   }
 }
 
@@ -91,6 +251,7 @@ async function addDevice() {
     ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: error?.response?.data?.message || 'Unable to connect to biometric device.' });
   } finally {
     saving.value = false;
+    fetchRecentLogs();
   }
 }
 
@@ -123,6 +284,8 @@ async function removeDevice(device) {
       title: 'Oops...',
       text: error?.response?.data?.message || 'Unable to remove biometric device.',
     });
+  } finally {
+    fetchRecentLogs();
   }
 }
 
@@ -133,6 +296,9 @@ async function connectDevice(device) {
   } catch (error) {
     console.error(error);
     ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: error?.response?.data?.message || 'Unable to connect biometric device.' });
+  } finally {
+    fetchRecentLogs();
+    fetchDevices();
   }
 }
 
@@ -143,22 +309,65 @@ async function disconnectDevice(device) {
   } catch (error) {
     console.error(error);
     ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: error?.response?.data?.message || 'Unable to disconnect biometric device.' });
+  } finally {
+    fetchRecentLogs();
   }
 }
 
+function startDownloadProgress() {
+  clearInterval(downloadProgressTimer);
+  downloadProgress.value = 0;
+  downloadProgressTimer = setInterval(() => {
+    if (downloadProgress.value >= 90) return;
+    const step = downloadProgress.value < 45 ? 5 : downloadProgress.value < 75 ? 2 : 1;
+    downloadProgress.value = Math.min(90, downloadProgress.value + step);
+  }, 200);
+}
+
+function stopDownloadProgress() {
+  clearInterval(downloadProgressTimer);
+  downloadProgressTimer = null;
+  clearTimeout(downloadStageTimer);
+  downloadStageTimer = null;
+}
+
 async function downloadLog(device) {
+  downloadTarget.value = device;
+  downloadStatus.value = 'connecting';
+  downloadResult.value = null;
+  downloadErrorMsg.value = '';
+  showDownloadModal.value = true;
+  startDownloadProgress();
+
+  downloadStageTimer = setTimeout(() => {
+    if (showDownloadModal.value) downloadStatus.value = 'transferring';
+  }, 600);
+
   try {
     const { data } = await axios.get(`/api/biometrics/${device.id}/download-log`);
     const summary = data?.data || {};
-    ThemeSwal.fire({
-      icon: 'success',
-      title: 'Logs saved to server',
-      html: `Total downloaded: <b>${summary.total_downloaded ?? 0}</b><br>Already existed: <b>${summary.already_exists ?? 0}</b>`,
-    });
+    downloadStatus.value = 'saving';
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    stopDownloadProgress();
+    downloadProgress.value = 100;
+    downloadResult.value = summary;
+    downloadStatus.value = 'success';
   } catch (error) {
     console.error(error);
-    ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: error?.response?.data?.message || 'Unable to download biometric logs.' });
+    stopDownloadProgress();
+    downloadStatus.value = 'error';
+    downloadErrorMsg.value = error?.response?.data?.message || 'Unable to download biometric logs.';
+  } finally {
+    fetchRecentLogs();
+    fetchDevices();
   }
+}
+
+function closeDownloadModal() {
+  if (downloadStatus.value !== 'success' && downloadStatus.value !== 'error') return;
+  showDownloadModal.value = false;
+  stopDownloadProgress();
+  downloadTarget.value = null;
 }
 
 function updateDevice(device) {
@@ -200,6 +409,8 @@ async function submitUpdateDevice() {
     ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: error?.response?.data?.message || 'Unable to update biometric device.' });
   } finally {
     updating.value = false;
+    fetchRecentLogs();
+    fetchDevices();
   }
 }
 
@@ -210,6 +421,9 @@ async function syncTime(device) {
   } catch (error) {
     console.error(error);
     ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: error?.response?.data?.message || 'Unable to sync biometric device time.' });
+  } finally {
+    fetchRecentLogs();
+    fetchDevices();
   }
 }
 
@@ -220,6 +434,9 @@ async function refreshDevice(device) {
   } catch (error) {
     console.error(error);
     ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: error?.response?.data?.message || 'Unable to refresh biometric device data.' });
+  } finally {
+    fetchRecentLogs();
+    fetchDevices();
   }
 }
 
@@ -230,6 +447,9 @@ function syncDeviceFromResponse(updatedDevice) {
   }
   const index = devices.value.findIndex((d) => d.id === updatedDevice.id);
   if (index !== -1) {
+    if (updatedDevice.last_synced_at === undefined) {
+      updatedDevice.last_synced_at = devices.value[index].last_synced_at ?? null;
+    }
     devices.value.splice(index, 1, updatedDevice);
     return;
   }
@@ -253,11 +473,13 @@ async function handleDeviceAction(action, device) {
 
 onMounted(() => {
   fetchDevices();
+  fetchRecentLogs();
   document.addEventListener('click', closeDeviceMenu);
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeDeviceMenu);
+  stopDownloadProgress();
 });
 </script>
 
@@ -297,14 +519,48 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <button class="btn-primary" @click="toggleForm">
-          <i class="fas fa-plus"></i>
-          Add device
-        </button>
+        <div class="icon-toolbar">
+          <button
+            class="icon-toolbar-btn"
+            type="button"
+            title="Refresh all"
+            aria-label="Refresh all"
+            :disabled="bulkRefreshing || !devices.length"
+            @click="refreshAllDevices"
+          >
+            <i class="fas fa-sync-alt" :class="{ 'fa-spin': bulkRefreshing }"></i>
+          </button>
+          <button
+            class="icon-toolbar-btn"
+            type="button"
+            title="Download all"
+            aria-label="Download all"
+            :disabled="bulkDownloading || !devices.length"
+            @click="downloadAllDevices"
+          >
+            <i class="fas fa-download" :class="{ 'fa-spin': bulkDownloading }"></i>
+          </button>
+          <button class="icon-toolbar-btn icon-toolbar-btn--primary" type="button" title="Add device" aria-label="Add device" @click="toggleForm">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
       </div>
     </header>
 
     <div class="surface">
+      <div class="search-bar">
+        <i class="fas fa-search search-bar__icon"></i>
+        <input
+          v-model.trim="searchQuery"
+          type="text"
+          class="search-bar__input"
+          placeholder="Search devices by name, IP, product or serial number..."
+        />
+        <button v-if="searchQuery" class="search-bar__clear" type="button" title="Clear search" aria-label="Clear search" @click="searchQuery = ''">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
       <div v-if="showForm" class="add-form">
         <div class="form-group">
           <label>Device name</label>
@@ -326,13 +582,26 @@ onBeforeUnmount(() => {
         <p>Loading biometric devices...</p>
       </div>
 
-      <div v-else-if="viewMode === 'card'" class="device-grid">
-        <article v-for="device in devices" :key="device.id || device.device_name" class="device-card">
+      <div v-else-if="viewMode === 'card'" class="device-carousel">
+        <button
+          v-if="filteredDevices.length"
+          class="carousel-nav carousel-nav--prev"
+          type="button"
+          title="Previous"
+          aria-label="Previous page"
+          :disabled="carouselPage === 0"
+          @click="prevCarouselPage"
+        >
+          <i class="fas fa-chevron-left"></i>
+        </button>
+
+        <div class="device-grid">
+        <article v-for="device in pagedDevices" :key="device.id || device.device_name" class="device-card">
           <div class="card-top">
             <div class="device-icon">
               <i class="fas fa-fingerprint"></i>
             </div>
-            <span class="card-period">Last 7 days</span>
+            <span class="card-period" :title="device.last_synced_at ? formatLogTime(device.last_synced_at) : ''">{{ lastSyncedLabel(device) }}</span>
           </div>
 
           <div class="device-name">{{ device.device_name }}</div>
@@ -360,10 +629,6 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="device-footer">
-            <div class="avatar-stack">
-              <span></span><span></span><span></span>
-            </div>
-
             <div class="device-action-wrap" @click.stop>
               <button
                 class="action-menu-btn"
@@ -409,10 +674,35 @@ onBeforeUnmount(() => {
           </div>
         </article>
 
-        <div v-if="!devices.length" class="empty-state">
-          <i class="fas fa-microchip"></i>
-          <p>No biometric devices added</p>
-          <span>Click "Add device" to get started</span>
+        <div v-if="!filteredDevices.length" class="empty-state">
+          <i class="fas" :class="searchQuery ? 'fa-magnifying-glass' : 'fa-microchip'"></i>
+          <p>{{ searchQuery ? 'No devices match your search' : 'No biometric devices added' }}</p>
+          <span>{{ searchQuery ? 'Try a different search term' : 'Click "Add device" to get started' }}</span>
+        </div>
+        </div>
+
+        <button
+          v-if="filteredDevices.length"
+          class="carousel-nav carousel-nav--next"
+          type="button"
+          title="Next"
+          aria-label="Next page"
+          :disabled="carouselPage >= totalCarouselPages - 1"
+          @click="nextCarouselPage"
+        >
+          <i class="fas fa-chevron-right"></i>
+        </button>
+
+        <div v-if="filteredDevices.length && totalCarouselPages > 1" class="carousel-dots">
+          <button
+            v-for="page in totalCarouselPages"
+            :key="page"
+            type="button"
+            class="carousel-dot"
+            :class="{ active: carouselPage === page - 1 }"
+            :aria-label="`Go to page ${page}`"
+            @click="goToCarouselPage(page - 1)"
+          ></button>
         </div>
       </div>
 
@@ -432,7 +722,7 @@ onBeforeUnmount(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="device in devices" :key="device.id || device.device_name">
+            <tr v-for="device in filteredDevices" :key="device.id || device.device_name">
               <td>
                 <div class="table-device-info">
                   <i class="fas fa-fingerprint"></i>
@@ -489,10 +779,10 @@ onBeforeUnmount(() => {
                 </div>
               </td>
             </tr>
-            <tr v-if="!devices.length">
+            <tr v-if="!filteredDevices.length">
               <td colspan="9" class="empty-table">
-                <i class="fas fa-microchip"></i>
-                <p>No biometric devices added</p>
+                <i class="fas" :class="searchQuery ? 'fa-magnifying-glass' : 'fa-microchip'"></i>
+                <p>{{ searchQuery ? 'No devices match your search' : 'No biometric devices added' }}</p>
               </td>
             </tr>
           </tbody>
@@ -500,15 +790,26 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="recent-logs">
-        <div class="recent-logs__title">Recent Sync Logs</div>
-        <div class="recent-avatars">
-          <span></span><span></span><span></span><span></span><span></span>
+        <button type="button" class="recent-logs__header" @click="showRecentLogs = !showRecentLogs">
+          <span class="recent-logs__title">Recent Sync Logs</span>
+          <i class="fas" :class="showRecentLogs ? 'fa-chevron-down' : 'fa-chevron-up'"></i>
+        </button>
+
+        <div v-if="showRecentLogs" class="recent-logs__list">
+          <div v-if="!recentLogs.length" class="recent-log-item recent-log-item--empty">
+            No sync activity yet
+          </div>
+          <div v-for="log in recentLogs" :key="log.id" class="recent-log-item">
+            <i class="fas recent-log-item__icon" :class="[logIcon(log), log.status === 'failed' ? 'is-failed' : 'is-success']"></i>
+            <div class="recent-log-item__body">
+              <span class="recent-log-item__text">{{ logLabel(log) }}</span>
+              <span class="recent-log-item__meta">{{ log.device_name || 'Unknown device' }} &middot; {{ formatLogTime(log.created_at) }}</span>
+            </div>
+          </div>
         </div>
-        <i class="fas fa-chevron-up"></i>
       </div>
 
       <footer class="footer-info">
-        <span><i class="fas fa-arrow-right"></i> Live data pull from biometric devices</span>
         <span><i class="fas fa-check-circle"></i> {{ devices.length }} device(s) connected</span>
       </footer>
     </div>
@@ -593,6 +894,87 @@ onBeforeUnmount(() => {
             <v-icon v-if="updating" icon="mdi-loading" size="14" class="lib-modal__spinner" />
             <v-icon v-else icon="mdi-content-save-outline" size="14" />
             {{ updating ? 'Saving...' : 'Update' }}
+          </button>
+        </div>
+      </div>
+    </v-dialog>
+
+    <v-dialog v-model="showDownloadModal" max-width="440px" persistent>
+      <div class="lib-modal download-modal">
+        <div class="lib-modal__body">
+          <p class="download-device-name">{{ downloadTarget?.device_name }}</p>
+
+          <div class="transfer-track">
+            <div class="transfer-node transfer-node--device">
+              <i class="fas fa-calculator"></i>
+              <span>Biometric</span>
+            </div>
+
+            <div class="transfer-path">
+              <div class="transfer-path__line"></div>
+              <div
+                v-for="n in 3"
+                :key="n"
+                class="transfer-packet"
+                :class="{ 'transfer-packet--paused': downloadStatus === 'success' || downloadStatus === 'error' }"
+                :style="{ animationDelay: (n - 1) * 0.45 + 's' }"
+              ></div>
+            </div>
+
+            <div class="transfer-node transfer-node--server">
+              <i class="fas fa-server"></i>
+              <span>Server</span>
+            </div>
+          </div>
+
+          <div class="download-progress">
+            <div class="download-progress__bar">
+              <div
+                class="download-progress__fill"
+                :class="{ 'download-progress__fill--error': downloadStatus === 'error' }"
+                :style="{ width: downloadProgress + '%' }"
+              ></div>
+            </div>
+            <div class="download-progress__meta">
+              <span class="download-progress__label">
+                <i v-if="downloadStatus === 'success'" class="fas fa-check-circle"></i>
+                <i v-else-if="downloadStatus === 'error'" class="fas fa-triangle-exclamation"></i>
+                <i v-else class="fas fa-circle-notch fa-spin"></i>
+                {{
+                  downloadStatus === 'connecting' ? 'Connecting to device...'
+                  : downloadStatus === 'transferring' ? 'Transferring logs...'
+                  : downloadStatus === 'saving' ? 'Saving to server...'
+                  : downloadStatus === 'success' ? 'Complete'
+                  : 'Failed'
+                }}
+              </span>
+              <span class="download-progress__pct">{{ Math.round(downloadProgress) }}%</span>
+            </div>
+          </div>
+
+          <div v-if="downloadStatus === 'success'" class="download-summary">
+            <div class="download-summary__row">
+              <span>New logs saved</span>
+              <strong>{{ downloadResult?.total_downloaded ?? 0 }}</strong>
+            </div>
+            <div class="download-summary__row">
+              <span>Already existed</span>
+              <strong>{{ downloadResult?.already_exists ?? 0 }}</strong>
+            </div>
+            <div class="download-summary__row">
+              <span>Total on device</span>
+              <strong>{{ downloadResult?.total_logs ?? 0 }}</strong>
+            </div>
+          </div>
+
+          <div v-if="downloadStatus === 'error'" class="download-error">
+            {{ downloadErrorMsg }}
+          </div>
+        </div>
+
+        <div v-if="downloadStatus === 'success' || downloadStatus === 'error'" class="lib-modal__footer">
+          <button class="lib-modal__btn lib-modal__btn--save" @click="closeDownloadModal">
+            Done
           </button>
         </div>
       </div>
@@ -698,18 +1080,44 @@ onBeforeUnmount(() => {
   color: #06162f;
 }
 
-.btn-primary {
+.icon-toolbar {
+  display: flex;
+  gap: 8px;
+}
+
+.icon-toolbar-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid rgba(121, 146, 207, 0.18);
+  background: rgba(24, 35, 70, 0.82);
+  color: #d6e2ff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(1, 8, 24, 0.16);
+}
+
+.icon-toolbar-btn:hover:not(:disabled) {
+  border-color: rgba(31, 191, 184, 0.5);
+  color: #75e7d7;
+}
+
+.icon-toolbar-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.icon-toolbar-btn--primary {
   border: 0;
-  padding: 11px 16px;
-  border-radius: 999px;
   background: linear-gradient(90deg, #1fbfb8 0%, #52d3d0 100%);
   color: #06162f;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
   box-shadow: 0 16px 30px rgba(31, 191, 184, 0.22);
+}
+
+.icon-toolbar-btn--primary:hover:not(:disabled) {
+  color: #06162f;
+  opacity: 0.9;
 }
 
 .surface {
@@ -718,6 +1126,54 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(121, 146, 207, 0.16);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.02), 0 24px 60px rgba(2, 7, 20, 0.28);
   padding: 14px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  margin-bottom: 14px;
+  padding: 0 14px;
+  border-radius: 14px;
+  background: rgba(7, 13, 28, 0.7);
+  border: 1px solid rgba(121, 146, 207, 0.18);
+}
+
+.search-bar:focus-within {
+  border-color: rgba(31, 191, 184, 0.6);
+  box-shadow: 0 0 0 3px rgba(31, 191, 184, 0.14);
+}
+
+.search-bar__icon {
+  color: #59d2d7;
+  font-size: 13px;
+}
+
+.search-bar__input {
+  flex: 1;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: #edf5ff;
+  outline: none;
+  font-size: 14px;
+}
+
+.search-bar__input::placeholder {
+  color: #7488ae;
+}
+
+.search-bar__clear {
+  border: 0;
+  background: transparent;
+  color: #9bb0da;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.search-bar__clear:hover {
+  color: #ff8080;
 }
 
 .add-form {
@@ -821,9 +1277,70 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
+.device-carousel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  margin-bottom: 26px;
+}
+
+.device-carousel .device-grid {
+  flex: 1;
+  min-width: 0;
+}
+
+.carousel-nav {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid rgba(121, 146, 207, 0.18);
+  background: rgba(24, 35, 70, 0.82);
+  color: #d6e2ff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(1, 8, 24, 0.16);
+}
+
+.carousel-nav:hover:not(:disabled) {
+  border-color: rgba(31, 191, 184, 0.5);
+  color: #75e7d7;
+}
+
+.carousel-nav:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.carousel-dots {
+  position: absolute;
+  left: 50%;
+  bottom: -22px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+}
+
+.carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: 0;
+  padding: 0;
+  background: rgba(121, 146, 207, 0.35);
+  cursor: pointer;
+}
+
+.carousel-dot.active {
+  background: #1fbfb8;
+  width: 20px;
+}
+
 .device-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
 }
 
@@ -922,8 +1439,8 @@ onBeforeUnmount(() => {
 }
 
 .status-badge.offline {
-  background: rgba(106, 112, 160, 0.22);
-  color: #bcbfe5;
+  background: rgba(255, 79, 79, 0.18);
+  color: #ff8080;
 }
 
 .status-badge i {
@@ -957,28 +1474,7 @@ onBeforeUnmount(() => {
   bottom: 12px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-}
-
-.avatar-stack {
-  display: flex;
-}
-
-.avatar-stack span {
-  width: 20px;
-  height: 20px;
-  margin-left: -6px;
-  border-radius: 999px;
-  border: 2px solid rgba(15, 24, 46, 1);
-  background: linear-gradient(180deg, #ffb39b, #ff7f63);
-}
-
-.avatar-stack span:nth-child(2) {
-  background: linear-gradient(180deg, #8ed5ff, #4b87ff);
-}
-
-.avatar-stack span:nth-child(3) {
-  background: linear-gradient(180deg, #83f2c6, #2cbf92);
+  justify-content: flex-end;
 }
 
 .device-action-wrap {
@@ -1108,15 +1604,23 @@ onBeforeUnmount(() => {
 
 .recent-logs {
   margin-top: 14px;
-  height: 42px;
   border-radius: 16px;
+  background: linear-gradient(180deg, rgba(22, 31, 58, 0.9), rgba(14, 21, 41, 0.98));
+  border: 1px solid rgba(121, 146, 207, 0.14);
+  color: #eaf3ff;
+}
+
+.recent-logs__header {
+  width: 100%;
+  height: 42px;
   padding: 0 14px;
   display: flex;
   align-items: center;
   gap: 12px;
-  background: linear-gradient(180deg, rgba(22, 31, 58, 0.9), rgba(14, 21, 41, 0.98));
-  border: 1px solid rgba(121, 146, 207, 0.14);
-  color: #eaf3ff;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
 }
 
 .recent-logs__title {
@@ -1124,28 +1628,71 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-.recent-avatars {
-  display: flex;
+.recent-logs__header i {
   margin-left: auto;
-}
-
-.recent-avatars span {
-  width: 20px;
-  height: 20px;
-  margin-left: -6px;
-  border-radius: 999px;
-  border: 2px solid rgba(14, 21, 41, 1);
-  background: linear-gradient(180deg, #ffb39b, #ff7f63);
-}
-
-.recent-avatars span:nth-child(2) { background: linear-gradient(180deg, #7fd5ff, #3d88ff); }
-.recent-avatars span:nth-child(3) { background: linear-gradient(180deg, #86f1c8, #2dbf92); }
-.recent-avatars span:nth-child(4) { background: linear-gradient(180deg, #ffd48b, #f5a33b); }
-.recent-avatars span:nth-child(5) { background: linear-gradient(180deg, #d1a4ff, #8a63ff); }
-
-.recent-logs > i {
   color: #aabce3;
   font-size: 12px;
+}
+
+.recent-logs__list {
+  padding: 4px 14px 12px;
+  display: grid;
+  gap: 4px;
+  max-height: 420px;
+  overflow-y: auto;
+  border-top: 1px solid rgba(121, 146, 207, 0.12);
+}
+
+.recent-log-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 4px;
+}
+
+.recent-log-item--empty {
+  color: #8ea3d4;
+  font-size: 13px;
+  justify-content: center;
+  padding: 16px 4px;
+}
+
+.recent-log-item__icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  font-size: 12px;
+  background: rgba(31, 191, 184, 0.15);
+  color: #59d2d7;
+}
+
+.recent-log-item__icon.is-failed {
+  background: rgba(255, 79, 79, 0.14);
+  color: #ff9b9b;
+}
+
+.recent-log-item__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.recent-log-item__text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #edf5ff;
+}
+
+.recent-log-item__meta {
+  font-size: 11px;
+  color: #8ea3d4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .footer-info {
@@ -1173,6 +1720,10 @@ onBeforeUnmount(() => {
   .hero-actions {
     justify-content: flex-start;
   }
+
+  .device-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 768px) {
@@ -1195,5 +1746,175 @@ onBeforeUnmount(() => {
   .hero-title h2 {
     font-size: 24px;
   }
+}
+
+.download-device-name {
+  text-align: center;
+  font-size: 13px;
+  color: #9bb0da;
+  margin-bottom: 20px;
+}
+
+.transfer-track {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.transfer-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.transfer-node i {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  font-size: 18px;
+  background: rgba(31, 191, 184, 0.15);
+  color: #59d2d7;
+  box-shadow: inset 0 0 0 1px rgba(31, 191, 184, 0.25);
+}
+
+.transfer-node span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8ea3d4;
+}
+
+.transfer-node--server i {
+  background: rgba(75, 135, 255, 0.15);
+  color: #8ed5ff;
+  box-shadow: inset 0 0 0 1px rgba(75, 135, 255, 0.25);
+}
+
+.transfer-path {
+  position: relative;
+  flex: 1;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.transfer-path__line {
+  width: 100%;
+  height: 2px;
+  border-radius: 999px;
+  background: repeating-linear-gradient(90deg, rgba(121, 146, 207, 0.35) 0 6px, transparent 6px 12px);
+}
+
+.transfer-packet {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 9px;
+  height: 9px;
+  margin-top: -4.5px;
+  border-radius: 999px;
+  background: #1fbfb8;
+  box-shadow: 0 0 10px 2px rgba(31, 191, 184, 0.75);
+  animation: transfer-move 1.6s linear infinite;
+}
+
+.transfer-packet--paused {
+  animation-play-state: paused;
+  opacity: 0;
+}
+
+@keyframes transfer-move {
+  0% {
+    left: 0%;
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  10% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+.download-progress__bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(121, 146, 207, 0.14);
+  overflow: hidden;
+}
+
+.download-progress__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1fbfb8 0%, #52d3d0 100%);
+  transition: width 0.25s ease;
+}
+
+.download-progress__fill--error {
+  background: linear-gradient(90deg, #ff7f63, #ff4d4d);
+}
+
+.download-progress__meta {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #9bb0da;
+}
+
+.download-progress__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.download-progress__pct {
+  font-weight: 700;
+  color: #edf5ff;
+}
+
+.download-summary {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(31, 191, 184, 0.08);
+  border: 1px solid rgba(31, 191, 184, 0.2);
+  display: grid;
+  gap: 8px;
+}
+
+.download-summary__row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #c8d6f8;
+}
+
+.download-summary__row strong {
+  color: #f5fbff;
+}
+
+.download-error {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 79, 79, 0.1);
+  border: 1px solid rgba(255, 79, 79, 0.25);
+  color: #ffb3b3;
+  font-size: 13px;
 }
 </style>

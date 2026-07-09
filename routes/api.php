@@ -45,6 +45,7 @@ Route::middleware(['auth:sanctum', 'extend.token'])->group(function () {
 
     Route::get('/biometrics', [BiometricController::class, 'index']);
     Route::post('/biometrics', [BiometricController::class, 'store']);
+    Route::get('/biometrics/logs', [BiometricController::class, 'logs']);
     Route::get('/biometrics/{biometric}', [BiometricController::class, 'show']);
     Route::put('/biometrics/{biometric}', [BiometricController::class, 'update']);
     Route::delete('/biometrics/{biometric}', [BiometricController::class, 'destroy']);
