@@ -32,6 +32,7 @@ Route::middleware('sync.api_key')->group(function () {
     Route::post('/sync/receive-office-divisions', [SyncController::class, 'receiveOfficeDivisions']);
     Route::post('/sync/receive-work-schedules', [SyncController::class, 'receiveWorkSchedules']);
     Route::post('/sync/receive-attendances', [SyncController::class, 'receiveAttendances']);
+    Route::get('/sync/biometric-locations', [SyncController::class, 'biometricLocations']);
 });
 
 Route::middleware(['auth:sanctum', 'extend.token'])->group(function () {

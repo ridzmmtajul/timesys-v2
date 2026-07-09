@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attendance;
+use App\Models\BiometricLocation;
 use App\Models\Employee;
+use App\Models\EmployeeOffice;
 use App\Models\EmploymentType;
 use App\Models\Office;
 use App\Models\OfficeDivision;
@@ -140,6 +142,20 @@ class SyncController extends Controller
     }
 
     /**
+     * The canonical list of biometric device labels a local instance can push
+     * as synced_from - see employee_offices, where synced_from scopes
+     * employee_no uniqueness. Called by the local instance's dashboard so
+     * operators pick from this list instead of free-typing a value that could
+     * drift from what's already on file.
+     */
+    public function biometricLocations(): JsonResponse
+    {
+        return response()->json([
+            'data' => BiometricLocation::orderBy('name')->pluck('name'),
+        ]);
+    }
+
+    /**
      * Shared push routine: sends only records that have never been synced
      * (synced_at is null) and marks them synced on success. A sync_logs
      * entry is written on the pushing (local) side for the attempt, and
@@ -230,80 +246,86 @@ class SyncController extends Controller
     // ── SERVER INSTANCE ─────────────────────────────────────────────────────
     // Receives a payload from a local instance and upserts into the central DB.
 
+    /**
+     * An employee can hold a different employee_no on each biometric device
+     * they're enrolled in (see employee_offices), so full name is the actual
+     * identity key here - employee_no is only unique within a single device's
+     * own enrollment list (identified by synced_from), not globally.
+     */
     public function receiveEmployees(Request $request)
     {
-        $employees  = $request->input('employees', []);
-        $syncedFrom = $request->input('synced_from');
-        $synced     = 0;
-        $skipped    = 0;
-        $existing   = 0;
-        $errors     = [];
-        $seenNos    = [];
-        $seenNames  = [];
+        $employees   = $request->input('employees', []);
+        $syncedFrom  = $request->input('synced_from');
+        $synced      = 0;
+        $skipped     = 0;
+        $existing    = 0;
+        $errors      = [];
+        $seenEnrollments = [];
 
         foreach ($employees as $data) {
+            $label = "{$data['employee_no']} ({$data['first_name']} {$data['last_name']})";
+
             try {
-                $fullName = mb_strtolower(trim(($data['first_name'] ?? '') . '|' . ($data['middle_name'] ?? '') . '|' . ($data['last_name'] ?? '')));
-
-                if (in_array($data['employee_no'], $seenNos, true)) {
-                    $skipped++;
-                    $errors[] = "Employee {$data['employee_no']}: duplicate employee_no in payload, skipped.";
-                    continue;
-                }
-
-                if (in_array($fullName, $seenNames, true)) {
-                    $skipped++;
-                    $errors[] = "Employee {$data['employee_no']}: duplicate full name in payload, skipped.";
-                    continue;
-                }
-
-                if (Employee::where('employee_no', $data['employee_no'])->exists()) {
-                    $existing++;
-                    continue;
-                }
-
-                if (Employee::where('first_name', $data['first_name'] ?? null)
-                    ->where('middle_name', $data['middle_name'] ?? null)
-                    ->where('last_name', $data['last_name'] ?? null)
-                    ->exists()) {
-                    $existing++;
-                    continue;
-                }
-
-                $seenNos[]   = $data['employee_no'];
-                $seenNames[] = $fullName;
-
                 $officeId = $this->resolveOffice($data['office_name'] ?? null, $data['office_code'] ?? null);
 
                 if (!$officeId) {
                     $skipped++;
-                    $errors[] = "Employee {$data['employee_no']}: office name is missing, skipped.";
+                    $errors[] = "Employee {$label}: office name is missing, skipped.";
                     continue;
                 }
 
-                Employee::create([
-                    'employee_no'          => $data['employee_no'],
-                    'first_name'           => $data['first_name'],
-                    'middle_name'          => $data['middle_name'] ?? null,
-                    'last_name'            => $data['last_name'],
-                    'name_ext'             => $data['name_ext'] ?? null,
-                    'gender'               => $data['gender'] ?? null,
-                    'contact_no'           => $data['contact_no'] ?? null,
-                    'job_title'            => $data['job_title'] ?? null,
-                    'is_active'            => $data['is_active'] ?? true,
-                    'image'                => $data['image'] ?? null,
-                    'signature'            => $data['signature'] ?? null,
-                    'office_id'            => $officeId,
-                    'employment_type_id'   => $this->resolveEmploymentType($data['employment_type_name'] ?? null),
-                    'position_id'          => $this->resolvePosition($data['position_name'] ?? null),
-                    'office_division_id'   => $this->resolveOfficeDivision($data['office_division_name'] ?? null, $data['office_division_code'] ?? null, $officeId),
-                    'synced_from'          => $syncedFrom,
+                $enrollmentKey = $syncedFrom . '|' . $data['employee_no'];
+
+                if (in_array($enrollmentKey, $seenEnrollments, true)) {
+                    $skipped++;
+                    $errors[] = "Employee {$label}: duplicate employee_no for this device in payload, skipped.";
+                    continue;
+                }
+                $seenEnrollments[] = $enrollmentKey;
+
+                $employee = $this->findMatchingEmployee($data);
+
+                if (!$employee) {
+                    $employee = Employee::create([
+                        'employee_no'          => $data['employee_no'],
+                        'first_name'           => $data['first_name'],
+                        'middle_name'          => $data['middle_name'] ?? null,
+                        'last_name'            => $data['last_name'],
+                        'name_ext'             => $data['name_ext'] ?? null,
+                        'gender'               => $data['gender'] ?? null,
+                        'contact_no'           => $data['contact_no'] ?? null,
+                        'job_title'            => $data['job_title'] ?? null,
+                        'is_active'            => $data['is_active'] ?? true,
+                        'image'                => $data['image'] ?? null,
+                        'signature'            => $data['signature'] ?? null,
+                        'office_id'            => $officeId,
+                        'employment_type_id'   => $this->resolveEmploymentType($data['employment_type_name'] ?? null),
+                        'position_id'          => $this->resolvePosition($data['position_name'] ?? null),
+                        'office_division_id'   => $this->resolveOfficeDivision($data['office_division_name'] ?? null, $data['office_division_code'] ?? null, $officeId),
+                        'synced_from'          => $syncedFrom,
+                    ]);
+                }
+
+                $enrollmentExists = EmployeeOffice::where('synced_from', $syncedFrom)
+                    ->where('employee_no', $data['employee_no'])
+                    ->exists();
+
+                if ($enrollmentExists) {
+                    $existing++;
+                    continue;
+                }
+
+                EmployeeOffice::create([
+                    'employee_id' => $employee->id,
+                    'office_id'   => $officeId,
+                    'employee_no' => $data['employee_no'],
+                    'synced_from' => $syncedFrom,
                 ]);
 
                 $synced++;
             } catch (\Throwable $e) {
                 $skipped++;
-                $errors[] = "Employee {$data['employee_no']}: {$e->getMessage()}";
+                $errors[] = "Employee {$label}: {$e->getMessage()}";
             }
         }
 
@@ -411,7 +433,7 @@ class SyncController extends Controller
 
         foreach ($items as $data) {
             try {
-                $employeeId = Employee::where('employee_no', $data['employee_no'] ?? null)->value('id');
+                $employeeId = $this->resolveEmployeeIdByEnrollment($data['employee_no'] ?? null, $syncedFrom);
 
                 if (!$employeeId) {
                     $skipped++;
@@ -468,7 +490,7 @@ class SyncController extends Controller
 
         foreach ($items as $data) {
             try {
-                $employeeId = Employee::where('employee_no', $data['employee_no'] ?? null)->value('id');
+                $employeeId = $this->resolveEmployeeIdByEnrollment($data['employee_no'] ?? null, $syncedFrom);
 
                 if (!$employeeId) {
                     $skipped++;
@@ -562,6 +584,118 @@ class SyncController extends Controller
             'errors'         => $errors,
             'message'        => $message,
         ]);
+    }
+
+    /**
+     * employee_no is only unique within the biometric device that assigned it
+     * (identified by synced_from - see employee_offices), so it's resolved
+     * through that table when the device is known. Falls back to the
+     * identity table's own employee_no for records synced before per-device
+     * enrollments existed.
+     */
+    private function resolveEmployeeIdByEnrollment(?string $employeeNo, ?string $syncedFrom): ?string
+    {
+        if (!$employeeNo) {
+            return null;
+        }
+
+        if ($syncedFrom) {
+            $employeeId = EmployeeOffice::where('synced_from', $syncedFrom)
+                ->where('employee_no', $employeeNo)
+                ->value('employee_id');
+
+            if ($employeeId) {
+                return $employeeId;
+            }
+        }
+
+        // No usable device context. employee_no is only unique within the
+        // device that assigned it, so if it's held by more than one distinct
+        // employee across different devices, guessing which one this record
+        // belongs to would risk silently attaching it to the wrong person -
+        // refuse instead.
+        $matches = EmployeeOffice::where('employee_no', $employeeNo)->pluck('employee_id')->unique();
+
+        if ($matches->count() === 1) {
+            return $matches->first();
+        }
+
+        if ($matches->count() > 1) {
+            return null;
+        }
+
+        return Employee::where('employee_no', $employeeNo)->value('id');
+    }
+
+    /**
+     * Full name is the identity key for employees (see receiveEmployees), but
+     * different offices don't always record it the same way - one office may
+     * store a full middle name ("Jose") where another only recorded an
+     * initial ("J." / "J"). name_ext ("Jr.", "Sr.") is still matched exactly,
+     * since it's what actually distinguishes different people who share a name
+     * (e.g. "Jose Manalo Jr." vs "Jose Manalo").
+     */
+    private function findMatchingEmployee(array $data): ?Employee
+    {
+        $firstName = trim($data['first_name'] ?? '');
+        $lastName  = trim($data['last_name'] ?? '');
+        $nameExt   = trim($data['name_ext'] ?? '') ?: null;
+
+        $candidates = Employee::whereRaw('LOWER(TRIM(first_name)) = ?', [mb_strtolower($firstName)])
+            ->whereRaw('LOWER(TRIM(last_name)) = ?', [mb_strtolower($lastName)])
+            ->where(function ($q) use ($nameExt) {
+                if ($nameExt === null) {
+                    $q->whereNull('name_ext')->orWhere('name_ext', '');
+                } else {
+                    $q->whereRaw('LOWER(TRIM(name_ext)) = ?', [mb_strtolower($nameExt)]);
+                }
+            })
+            ->get();
+
+        foreach ($candidates as $candidate) {
+            if ($this->middleNamesMatch($candidate->middle_name, $data['middle_name'] ?? null)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function middleNamesMatch(?string $a, ?string $b): bool
+    {
+        $a = $a !== null && trim($a) !== '' ? trim($a) : null;
+        $b = $b !== null && trim($b) !== '' ? trim($b) : null;
+
+        if ($a === null && $b === null) {
+            return true;
+        }
+
+        if ($a === null || $b === null) {
+            return false;
+        }
+
+        if (mb_strtolower($a) === mb_strtolower($b)) {
+            return true;
+        }
+
+        $aIsInitial = $this->isMiddleInitial($a);
+        $bIsInitial = $this->isMiddleInitial($b);
+
+        if ($aIsInitial === $bIsInitial) {
+            // Either both are initials but different letters, or both are
+            // full names but spelled differently - not a safe match.
+            return false;
+        }
+
+        $initial = $aIsInitial ? $a : $b;
+        $full    = $aIsInitial ? $b : $a;
+
+        return mb_strtolower(rtrim($initial, '.')) === mb_strtolower(mb_substr($full, 0, 1));
+    }
+
+    private function isMiddleInitial(string $value): bool
+    {
+        return (bool) preg_match('/^[A-Za-z]\.?$/', $value);
     }
 
     private function resolveOffice(?string $name, ?string $code): ?int

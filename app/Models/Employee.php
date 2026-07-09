@@ -53,4 +53,9 @@ class Employee extends Model
     {
         return $this->belongsTo(OfficeDivision::class);
     }
+
+    public function employeeOffices()
+    {
+        return $this->hasMany(EmployeeOffice::class);
+    }
 }
