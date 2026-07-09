@@ -261,8 +261,9 @@ class SyncController extends Controller
         $existing    = 0;
         $errors      = [];
         $seenEnrollments = [];
+        $skippedIndexes  = [];
 
-        foreach ($employees as $data) {
+        foreach ($employees as $idx => $data) {
             $label = "{$data['employee_no']} ({$data['first_name']} {$data['last_name']})";
 
             try {
@@ -270,6 +271,7 @@ class SyncController extends Controller
 
                 if (!$officeId) {
                     $skipped++;
+                    $skippedIndexes[] = $idx;
                     $errors[] = "Employee {$label}: office name is missing, skipped.";
                     continue;
                 }
@@ -278,6 +280,7 @@ class SyncController extends Controller
 
                 if (in_array($enrollmentKey, $seenEnrollments, true)) {
                     $skipped++;
+                    $skippedIndexes[] = $idx;
                     $errors[] = "Employee {$label}: duplicate employee_no for this device in payload, skipped.";
                     continue;
                 }
@@ -325,25 +328,28 @@ class SyncController extends Controller
                 $synced++;
             } catch (\Throwable $e) {
                 $skipped++;
+                $skippedIndexes[] = $idx;
                 $errors[] = "Employee {$label}: {$e->getMessage()}";
             }
         }
 
-        return $this->respondReceive('employees', $synced, $existing, $skipped, $errors, 'employee(s)', $syncedFrom);
+        return $this->respondReceive('employees', $synced, $existing, $skipped, $errors, 'employee(s)', $syncedFrom, $skippedIndexes);
     }
 
     public function receiveOffices(Request $request)
     {
-        $offices  = $request->input('offices', []);
-        $synced   = 0;
-        $existing = 0;
-        $skipped  = 0;
-        $errors   = [];
+        $offices        = $request->input('offices', []);
+        $synced         = 0;
+        $existing       = 0;
+        $skipped        = 0;
+        $errors         = [];
+        $skippedIndexes = [];
 
-        foreach ($offices as $data) {
+        foreach ($offices as $idx => $data) {
             try {
                 if (empty($data['code']) && empty($data['name'])) {
                     $skipped++;
+                    $skippedIndexes[] = $idx;
                     $errors[] = 'Office is missing code and name, skipped.';
                     continue;
                 }
@@ -368,27 +374,30 @@ class SyncController extends Controller
                 $synced++;
             } catch (\Throwable $e) {
                 $skipped++;
+                $skippedIndexes[] = $idx;
                 $errors[] = "Office {$data['code']}: {$e->getMessage()}";
             }
         }
 
-        return $this->respondReceive('offices', $synced, $existing, $skipped, $errors, 'office(s)');
+        return $this->respondReceive('offices', $synced, $existing, $skipped, $errors, 'office(s)', null, $skippedIndexes);
     }
 
     public function receiveOfficeDivisions(Request $request)
     {
-        $divisions = $request->input('office_divisions', []);
-        $synced    = 0;
-        $existing  = 0;
-        $skipped   = 0;
-        $errors    = [];
+        $divisions      = $request->input('office_divisions', []);
+        $synced         = 0;
+        $existing       = 0;
+        $skipped        = 0;
+        $errors         = [];
+        $skippedIndexes = [];
 
-        foreach ($divisions as $data) {
+        foreach ($divisions as $idx => $data) {
             try {
                 $officeId = $this->resolveOffice($data['office_name'] ?? null, $data['office_code'] ?? null);
 
                 if (!$officeId) {
                     $skipped++;
+                    $skippedIndexes[] = $idx;
                     $errors[] = "Division {$data['name']}: office is missing, skipped.";
                     continue;
                 }
@@ -415,29 +424,34 @@ class SyncController extends Controller
                 $synced++;
             } catch (\Throwable $e) {
                 $skipped++;
+                $skippedIndexes[] = $idx;
                 $errors[] = "Division {$data['name']}: {$e->getMessage()}";
             }
         }
 
-        return $this->respondReceive('office_divisions', $synced, $existing, $skipped, $errors, 'division(s)');
+        return $this->respondReceive('office_divisions', $synced, $existing, $skipped, $errors, 'division(s)', null, $skippedIndexes);
     }
 
     public function receiveWorkSchedules(Request $request)
     {
-        $items      = $request->input('work_schedules', []);
-        $syncedFrom = $request->input('synced_from');
-        $synced     = 0;
-        $existing   = 0;
-        $skipped    = 0;
-        $errors     = [];
+        $items          = $request->input('work_schedules', []);
+        $syncedFrom     = $request->input('synced_from');
+        $synced         = 0;
+        $existing       = 0;
+        $skipped        = 0;
+        $errors         = [];
+        $skippedIndexes = [];
 
-        foreach ($items as $data) {
+        foreach ($items as $idx => $data) {
             try {
                 $employeeId = $this->resolveEmployeeIdByEnrollment($data['employee_no'] ?? null, $syncedFrom);
 
                 if (!$employeeId) {
                     $skipped++;
-                    $errors[] = "Work schedule: employee {$data['employee_no']} not found on central server, skipped.";
+                    $skippedIndexes[] = $idx;
+                    $label    = trim(($data['employee_no'] ?? 'unknown no.') . ' (' . ($data['employee_name'] ?? 'unknown name') . ')');
+                    $sourceId = $data['source_id'] ?? '?';
+                    $errors[] = "Work schedule (id {$sourceId} on source): employee {$label} not found on central server, skipped.";
                     continue;
                 }
 
@@ -472,28 +486,31 @@ class SyncController extends Controller
                 $synced++;
             } catch (\Throwable $e) {
                 $skipped++;
-                $errors[] = "Work schedule for {$data['employee_no']}: {$e->getMessage()}";
+                $skippedIndexes[] = $idx;
+                $errors[] = "Work schedule (id " . ($data['source_id'] ?? '?') . " on source) for {$data['employee_no']}: {$e->getMessage()}";
             }
         }
 
-        return $this->respondReceive('work_schedules', $synced, $existing, $skipped, $errors, 'work schedule(s)', $syncedFrom);
+        return $this->respondReceive('work_schedules', $synced, $existing, $skipped, $errors, 'work schedule(s)', $syncedFrom, $skippedIndexes);
     }
 
     public function receiveAttendances(Request $request)
     {
-        $items      = $request->input('attendances', []);
-        $syncedFrom = $request->input('synced_from');
-        $synced     = 0;
-        $existing   = 0;
-        $skipped    = 0;
-        $errors     = [];
+        $items          = $request->input('attendances', []);
+        $syncedFrom     = $request->input('synced_from');
+        $synced         = 0;
+        $existing       = 0;
+        $skipped        = 0;
+        $errors         = [];
+        $skippedIndexes = [];
 
-        foreach ($items as $data) {
+        foreach ($items as $idx => $data) {
             try {
                 $employeeId = $this->resolveEmployeeIdByEnrollment($data['employee_no'] ?? null, $syncedFrom);
 
                 if (!$employeeId) {
                     $skipped++;
+                    $skippedIndexes[] = $idx;
                     $errors[] = "Attendance: employee {$data['employee_no']} not found on central server, skipped.";
                     continue;
                 }
@@ -522,11 +539,12 @@ class SyncController extends Controller
                 $synced++;
             } catch (\Throwable $e) {
                 $skipped++;
+                $skippedIndexes[] = $idx;
                 $errors[] = "Attendance for {$data['employee_no']}: {$e->getMessage()}";
             }
         }
 
-        return $this->respondReceive('attendances', $synced, $existing, $skipped, $errors, 'attendance record(s)', $syncedFrom);
+        return $this->respondReceive('attendances', $synced, $existing, $skipped, $errors, 'attendance record(s)', $syncedFrom, $skippedIndexes);
     }
 
     // ── SYNC LOGS ────────────────────────────────────────────────────────────
@@ -544,7 +562,7 @@ class SyncController extends Controller
 
     // ── HELPERS ──────────────────────────────────────────────────────────────
 
-    private function respondReceive(string $module, int $synced, int $existing, int $skipped, array $errors, string $label, ?string $syncedFrom = null): JsonResponse
+    private function respondReceive(string $module, int $synced, int $existing, int $skipped, array $errors, string $label, ?string $syncedFrom = null, array $skippedIndexes = []): JsonResponse
     {
         $status = 'success';
         if (!empty($errors)) {
@@ -561,12 +579,13 @@ class SyncController extends Controller
         ], $errors, $message, $syncedFrom);
 
         return response()->json([
-            'success'  => $status !== 'failed',
-            'synced'   => $synced,
-            'existing' => $existing,
-            'skipped'  => $skipped,
-            'message'  => $message,
-            'errors'   => $errors,
+            'success'         => $status !== 'failed',
+            'synced'          => $synced,
+            'existing'        => $existing,
+            'skipped'         => $skipped,
+            'message'         => $message,
+            'errors'          => $errors,
+            'skipped_indexes' => $skippedIndexes,
         ]);
     }
 
