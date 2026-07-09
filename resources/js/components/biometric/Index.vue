@@ -148,19 +148,13 @@ async function disconnectDevice(device) {
 
 async function downloadLog(device) {
   try {
-    const response = await axios.get(`/api/biometrics/${device.id}/download-log`, { responseType: 'blob' });
-    const contentDisposition = response.headers?.['content-disposition'] || '';
-    const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
-    const fileName = fileNameMatch?.[1] || `biometric-${device.id}-logs.csv`;
-    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
-    const url = window.URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = fileName;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    window.URL.revokeObjectURL(url);
+    const { data } = await axios.get(`/api/biometrics/${device.id}/download-log`);
+    const summary = data?.data || {};
+    ThemeSwal.fire({
+      icon: 'success',
+      title: 'Logs saved to server',
+      html: `Total downloaded: <b>${summary.total_downloaded ?? 0}</b><br>Already existed: <b>${summary.already_exists ?? 0}</b>`,
+    });
   } catch (error) {
     console.error(error);
     ThemeSwal.fire({ icon: 'error', title: 'Oops...', text: error?.response?.data?.message || 'Unable to download biometric logs.' });

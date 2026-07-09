@@ -4,11 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Attendance;
 use App\Models\Biometric;
-use App\Models\Checkinout;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Rats\Zkteco\Lib\ZKTeco;
 
 class BiometricController extends Controller
@@ -176,6 +174,10 @@ class BiometricController extends Controller
 
     public function downloadLog(Biometric $biometric)
     {
+        // ZKTeco reads over UDP; a single dropped packet makes the library retry
+        // with a 60s socket timeout, which blows past PHP's default 30s limit.
+        set_time_limit(180);
+
         $zk = new ZKTeco($biometric->ip_address, (int) ($biometric->port ?: 4370));
 
         if (!$zk->connect()) {
@@ -194,7 +196,24 @@ class BiometricController extends Controller
         }
 
         $serialNumber = $biometric->serial_number;
-        $rows = [];
+
+        $badgeNumbers = collect($logs)->pluck('id')->filter()->unique()->values()->all();
+
+        $userIdsByBadge = DB::connection('sqlsrv2')
+            ->table('USERINFO')
+            ->whereIn('BADGENUMBER', $badgeNumbers)
+            ->pluck('USERID', 'BADGENUMBER');
+
+        $existingKeys = DB::connection('sqlsrv2')
+            ->table('CHECKINOUT')
+            ->whereIn('USERID', $userIdsByBadge->values()->unique()->all())
+            ->where('sn', $serialNumber)
+            ->get(['USERID', 'CHECKTIME'])
+            ->map(fn ($row) => $row->USERID . '|' . Carbon::parse($row->CHECKTIME)->format('Y-m-d H:i:s'))
+            ->flip();
+
+        $newCount = 0;
+        $existingCount = 0;
 
         foreach ($logs as $log) {
             $badgeNumber = $log['id'] ?? null;
@@ -204,110 +223,42 @@ class BiometricController extends Controller
                 continue;
             }
 
-            $record = Checkinout::firstOrCreate(
-                [
-                    'badge_number'  => $badgeNumber,
-                    'check_time'    => $checkTime,
-                    'serial_number' => $serialNumber,
-                ],
-                ['status' => false]
-            );
+            $userId = $userIdsByBadge[$badgeNumber] ?? null;
 
-            $rows[] = [
-                'record'    => $record,
-                'checktype' => in_array((int) ($log['state'] ?? 0), [1, 3, 5], true) ? 'O' : 'I',
-            ];
-        }
+            if (!$userId) {
+                continue;
+            }
 
-        $this->postCheckinoutToCentral($rows, $serialNumber);
+            $checkTime = Carbon::parse($checkTime)->format('Y-m-d H:i:s');
+            $key       = $userId . '|' . $checkTime;
 
-        $filename = 'biometric-' . Str::slug($biometric->device_name) . '-' . now()->format('Ymd_His') . '.csv';
+            if ($existingKeys->has($key)) {
+                $existingCount++;
+                continue;
+            }
 
-        $csv = fopen('php://temp', 'w+');
-        fputcsv($csv, ['Badge Number', 'Check Time', 'Type', 'Posted to Server']);
-        foreach ($rows as $row) {
-            fputcsv($csv, [
-                $row['record']->badge_number,
-                $row['record']->check_time->format('Y-m-d H:i:s'),
-                $row['checktype'] === 'O' ? 'Check Out' : 'Check In',
-                $row['record']->status ? 'Yes' : 'No',
+            DB::connection('sqlsrv2')->table('CHECKINOUT')->insert([
+                'USERID'     => $userId,
+                'CHECKTIME'  => $checkTime,
+                'CHECKTYPE'  => in_array((int) ($log['state'] ?? 0), [1, 3, 5], true) ? 'O' : 'I',
+                'VERIFYCODE' => 0,
+                'sn'         => $serialNumber,
+                'WorkCode'   => 0,
             ]);
-        }
-        rewind($csv);
-        $content = stream_get_contents($csv);
-        fclose($csv);
 
-        return response($content, 200, [
-            'Content-Type'        => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            $existingKeys->put($key, true);
+            $newCount++;
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Biometric logs saved to central server.',
+            'data' => [
+                'total_downloaded' => $newCount,
+                'already_exists'   => $existingCount,
+                'total_logs'       => count($logs),
+            ],
         ]);
-    }
-
-    /**
-     * Push newly-downloaded checkinout rows to the central AttendanceLog server
-     * (USERINFO/CHECKINOUT). That database is never migrated or updated in place —
-     * matching USERIDs are resolved by BADGENUMBER and only missing CHECKINOUT
-     * rows are inserted. Local rows are marked posted once confirmed present.
-     */
-    private function postCheckinoutToCentral(array $rows, ?string $serialNumber): void
-    {
-        $pending = array_filter($rows, fn ($row) => !$row['record']->status);
-
-        if (empty($pending)) {
-            return;
-        }
-
-        try {
-            $badgeNumbers = collect($pending)->pluck('record.badge_number')->unique()->values()->all();
-
-            $userIdsByBadge = DB::connection('sqlsrv2')
-                ->table('USERINFO')
-                ->whereIn('BADGENUMBER', $badgeNumbers)
-                ->pluck('USERID', 'BADGENUMBER');
-
-            if ($userIdsByBadge->isEmpty()) {
-                return;
-            }
-
-            $existingKeys = DB::connection('sqlsrv2')
-                ->table('CHECKINOUT')
-                ->whereIn('USERID', $userIdsByBadge->values()->unique()->all())
-                ->where('sn', $serialNumber)
-                ->get(['USERID', 'CHECKTIME'])
-                ->map(fn ($row) => $row->USERID . '|' . Carbon::parse($row->CHECKTIME)->format('Y-m-d H:i:s'))
-                ->flip();
-
-            foreach ($pending as $row) {
-                $record = $row['record'];
-                $userId = $userIdsByBadge[$record->badge_number] ?? null;
-
-                if (!$userId) {
-                    continue;
-                }
-
-                $checkTime = $record->check_time->format('Y-m-d H:i:s');
-                $key       = $userId . '|' . $checkTime;
-
-                if (!$existingKeys->has($key)) {
-                    DB::connection('sqlsrv2')->table('CHECKINOUT')->insert([
-                        'USERID'     => $userId,
-                        'CHECKTIME'  => $checkTime,
-                        'CHECKTYPE'  => $row['checktype'],
-                        'VERIFYCODE' => 0,
-                        'sn'         => $serialNumber,
-                        'WorkCode'   => 0,
-                    ]);
-                }
-
-                $record->update([
-                    'status'      => true,
-                    'date_posted' => now(),
-                    'posted_by'   => optional(auth()->user())->username ?? 'system',
-                ]);
-            }
-        } catch (\Throwable $e) {
-            report($e);
-        }
     }
 
     public function pullLogs()

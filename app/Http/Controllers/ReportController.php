@@ -158,7 +158,7 @@ class ReportController extends Controller
                 'date'            => $date,
                 'office'          => $officeName,
                 'office_division' => $divisionName,
-                'generated_at'    => now()->format('h:i:s A'),
+                'generated_at'    => now()->format('M d, Y h:i:s A'),
                 'total'           => count($rows),
             ],
         ];
