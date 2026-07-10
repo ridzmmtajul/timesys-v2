@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Attendance;
 use App\Models\AttendanceUndertimeView;
-use App\Models\Checkinout;
 use App\Models\Employee;
 use App\Models\Holiday;
 use App\Models\WorkSchedule;
@@ -73,13 +73,13 @@ class DtrController extends Controller
 
         $employee = Employee::findOrFail($request->employee_id);
 
-        $logs = Checkinout::where('badge_number', $employee->employee_no)
+        $logs = Attendance::where('employee_id', $employee->id)
             ->whereBetween('check_time', [
                 $request->from_date . ' 00:00:00',
                 $request->to_date . ' 23:59:59',
             ])
             ->orderBy('check_time')
-            ->get(['id', 'badge_number', 'check_time', 'serial_number', 'status']);
+            ->get(['id', 'employee_id', 'check_time', 'serial_no', 'post_no', 'synced_from', 'void']);
 
         return response()->json([
             'data'     => $logs,

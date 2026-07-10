@@ -855,24 +855,29 @@ const fmt = (t) => {
                                 <th>#</th>
                                 <th>Date &amp; Time</th>
                                 <th>Serial Number</th>
-                                <th>Status</th>
+                                <th>Post No.</th>
+                                <th>Synced From</th>
+                                <!-- <th>Status</th> -->
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-if="is_checkinout_loading">
-                                <td colspan="4" class="dtr-empty">Loading…</td>
+                                <td colspan="6" class="dtr-empty">Loading…</td>
                             </tr>
                             <template v-else>
                                 <tr v-for="(log, idx) in checkinoutLogs" :key="log.id">
                                     <td>{{ idx + 1 }}</td>
                                     <td>{{ fmtDateTime(log.check_time) }}</td>
-                                    <td>{{ log.serial_number }}</td>
-                                    <td>
-                                        <span v-if="log.status" class="status-badge status-badge--posted">Posted</span>
-                                    </td>
+                                    <td>{{ log.serial_no }}</td>
+                                    <td>{{ log.post_no ?? '—' }}</td>
+                                    <td>{{ log.synced_from || '—' }}</td>
+                                    <!-- <td>
+                                        <span v-if="!log.void" class="status-badge status-badge--posted">Posted</span>
+                                        <span v-else class="status-badge status-badge--void">Void</span>
+                                    </td> -->
                                 </tr>
                                 <tr v-if="!checkinoutLogs.length">
-                                    <td colspan="4" class="dtr-empty">No raw check-in/out records found for this range</td>
+                                    <td colspan="6" class="dtr-empty">No raw check-in/out records found for this range</td>
                                 </tr>
                             </template>
                         </tbody>
@@ -1547,4 +1552,5 @@ const fmt = (t) => {
     white-space: nowrap;
 }
 .status-badge--posted { background: rgba(31, 191, 184, 0.12); color: #1fbfb8; }
+.status-badge--void   { background: rgba(248, 113, 113, 0.12); color: #f87171; }
 </style>
