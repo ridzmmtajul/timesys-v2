@@ -100,8 +100,8 @@ class SyncController extends Controller
                 'timeout_AM'         => $ws->timeout_AM,
                 'timein_PM'          => $ws->timein_PM,
                 'timeout_PM'         => $ws->timeout_PM,
-                'from_date'          => $ws->from_date,
-                'to_date'            => $ws->to_date,
+                'from_date'          => $this->nullIfZeroDate($ws->from_date),
+                'to_date'            => $this->nullIfZeroDate($ws->to_date),
                 'is_others'          => $ws->is_others,
                 'schedule_for'       => $ws->schedule_for,
                 'days'               => $ws->days,
@@ -455,10 +455,13 @@ class SyncController extends Controller
                     continue;
                 }
 
+                $fromDate = $this->nullIfZeroDate($data['from_date'] ?? null);
+                $toDate   = $this->nullIfZeroDate($data['to_date'] ?? null);
+
                 $exists = WorkSchedule::where('employee_id', $employeeId)
                     ->where('schedule_for', $data['schedule_for'] ?? null)
-                    ->where('from_date', $data['from_date'] ?? null)
-                    ->where('to_date', $data['to_date'] ?? null)
+                    ->where('from_date', $fromDate)
+                    ->where('to_date', $toDate)
                     ->exists();
 
                 if ($exists) {
@@ -474,8 +477,8 @@ class SyncController extends Controller
                     'timeout_AM'       => $data['timeout_AM'] ?? null,
                     'timein_PM'        => $data['timein_PM'] ?? null,
                     'timeout_PM'       => $data['timeout_PM'] ?? null,
-                    'from_date'        => $data['from_date'] ?? null,
-                    'to_date'          => $data['to_date'] ?? null,
+                    'from_date'        => $fromDate,
+                    'to_date'          => $toDate,
                     'is_others'        => $data['is_others'] ?? false,
                     'schedule_for'     => $data['schedule_for'] ?? null,
                     'days'             => $data['days'] ?? [],
@@ -751,6 +754,11 @@ class SyncController extends Controller
     {
         if (!$name) return null;
         return Schedule::firstOrCreate(['name' => $name])->id;
+    }
+
+    private function nullIfZeroDate(?string $date): ?string
+    {
+        return $date === '0000-00-00' ? null : $date;
     }
 
     private function resolveScheduleType(?string $name): ?int
