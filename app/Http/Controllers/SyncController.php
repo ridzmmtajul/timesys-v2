@@ -319,12 +319,14 @@ class SyncController extends Controller
                     continue;
                 }
 
-                EmployeeOffice::create([
-                    'employee_id' => $employee->id,
-                    'office_id'   => $officeId,
-                    'employee_no' => $data['employee_no'],
-                    'synced_from' => $syncedFrom,
-                ]);
+                // A device may re-enroll the same employee under a new
+                // employee_no (e.g. after a biometric reset), replacing
+                // rather than duplicating their enrollment on this device -
+                // employee_offices only allows one row per (employee, device).
+                EmployeeOffice::updateOrCreate(
+                    ['employee_id' => $employee->id, 'synced_from' => $syncedFrom],
+                    ['office_id' => $officeId, 'employee_no' => $data['employee_no']]
+                );
 
                 $synced++;
             } catch (\Throwable $e) {
@@ -685,10 +687,7 @@ class SyncController extends Controller
             return null;
         }
 
-        // withTrashed(): a soft-deleted employee on the source side is still
-        // a real employee here and should resolve normally — deletion there
-        // is reflected via employee_is_active, not by refusing to match.
-        return Employee::withTrashed()->where('employee_no', $employeeNo)->value('id');
+        return Employee::where('employee_no', $employeeNo)->value('id');
     }
 
     /**
