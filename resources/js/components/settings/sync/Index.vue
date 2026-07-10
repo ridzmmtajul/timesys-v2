@@ -33,6 +33,16 @@ function goToPage(page) {
     getLogs(page, moduleFilter.value);
 }
 
+const activeLog = ref(null);
+
+function openDetails(log) {
+    activeLog.value = log;
+}
+
+function closeDetails() {
+    activeLog.value = null;
+}
+
 onMounted(() => {
     getPendingCounts();
     getLogs();
@@ -97,6 +107,7 @@ onMounted(() => {
                             <th>Skipped</th>
                             <th>Message</th>
                             <th>When</th>
+                            <th>Details</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -115,9 +126,15 @@ onMounted(() => {
                             <td>{{ log.skipped_count }}</td>
                             <td class="muted message-cell">{{ log.message || '—' }}</td>
                             <td class="muted">{{ formatDate(log.created_at) }}</td>
+                            <td>
+                                <button v-if="log.errors?.length" class="details-btn" @click="openDetails(log)">
+                                    View ({{ log.errors.length }})
+                                </button>
+                                <span v-else class="muted">—</span>
+                            </td>
                         </tr>
                         <tr v-if="!logs.length">
-                            <td colspan="9" class="empty-table">
+                            <td colspan="10" class="empty-table">
                                 <v-icon icon="mdi-cloud-off-outline" size="30" />
                                 <p>No sync activity yet</p>
                                 <span v-if="!is_central">Click "Sync All" to send local records to the central server</span>
@@ -155,6 +172,20 @@ onMounted(() => {
                     <v-icon icon="mdi-check-circle" size="12" /> {{ formatCount(pagination.total) }} log(s)
                 </span>
             </footer>
+        </div>
+
+        <div v-if="activeLog" class="modal-overlay" @click.self="closeDetails">
+            <div class="modal-box">
+                <header class="modal-header">
+                    <h3>{{ activeLog.module }} — {{ activeLog.direction }} details</h3>
+                    <button class="modal-close" @click="closeDetails">
+                        <v-icon icon="mdi-close" size="16" />
+                    </button>
+                </header>
+                <ul class="modal-list">
+                    <li v-for="(error, idx) in activeLog.errors" :key="idx">{{ error }}</li>
+                </ul>
+            </div>
         </div>
     </section>
 </template>
@@ -436,6 +467,100 @@ onMounted(() => {
 .status-failed {
     background: rgba(220, 60, 60, 0.16);
     color: #f08080;
+}
+
+/* ── Details button ── */
+.details-btn {
+    border: 1px solid rgba(31, 191, 184, 0.3);
+    background: rgba(31, 191, 184, 0.12);
+    color: #75e7d7;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.details-btn:hover {
+    background: rgba(31, 191, 184, 0.22);
+}
+
+/* ── Details modal ── */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(4, 8, 20, 0.6);
+    display: grid;
+    place-items: center;
+    z-index: 50;
+    padding: 20px;
+}
+
+.modal-box {
+    width: 100%;
+    max-width: 560px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    border-radius: 16px;
+    background: #0e1c3a;
+    border: 1px solid rgba(121, 146, 207, 0.2);
+    box-shadow: 0 30px 70px rgba(2, 7, 20, 0.5);
+    overflow: hidden;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    border-bottom: 1px solid rgba(121, 146, 207, 0.16);
+}
+
+.modal-header h3 {
+    font-size: 15px;
+    color: #f3f7ff;
+    text-transform: capitalize;
+}
+
+.modal-close {
+    border: 0;
+    background: rgba(121, 146, 207, 0.12);
+    color: #9bb0da;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+}
+
+.modal-close:hover {
+    background: rgba(220, 60, 60, 0.18);
+    color: #f08080;
+}
+
+.modal-list {
+    overflow-y: auto;
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.modal-list li {
+    font-size: 13px;
+    color: #cdd9f5;
+    line-height: 1.5;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(121, 146, 207, 0.1);
+}
+
+.modal-list li:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
 }
 
 /* ── Empty state ── */

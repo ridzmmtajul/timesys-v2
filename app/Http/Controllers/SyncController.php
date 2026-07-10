@@ -16,6 +16,7 @@ use App\Models\SyncLog;
 use App\Models\WorkSchedule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 class SyncController extends Controller
@@ -333,7 +334,7 @@ class SyncController extends Controller
             }
         }
 
-        return $this->respondReceive('employees', $synced, $existing, $skipped, $errors, 'employee(s)', $syncedFrom, $skippedIndexes);
+        return $this->respondReceive('employees', $synced, $existing, $skipped, $errors, 'employee(s)', $syncedFrom, $skippedIndexes, $request->boolean('is_final_chunk', true));
     }
 
     public function receiveOffices(Request $request)
@@ -379,7 +380,7 @@ class SyncController extends Controller
             }
         }
 
-        return $this->respondReceive('offices', $synced, $existing, $skipped, $errors, 'office(s)', null, $skippedIndexes);
+        return $this->respondReceive('offices', $synced, $existing, $skipped, $errors, 'office(s)', null, $skippedIndexes, $request->boolean('is_final_chunk', true));
     }
 
     public function receiveOfficeDivisions(Request $request)
@@ -429,7 +430,7 @@ class SyncController extends Controller
             }
         }
 
-        return $this->respondReceive('office_divisions', $synced, $existing, $skipped, $errors, 'division(s)', null, $skippedIndexes);
+        return $this->respondReceive('office_divisions', $synced, $existing, $skipped, $errors, 'division(s)', null, $skippedIndexes, $request->boolean('is_final_chunk', true));
     }
 
     public function receiveWorkSchedules(Request $request)
@@ -494,7 +495,7 @@ class SyncController extends Controller
             }
         }
 
-        return $this->respondReceive('work_schedules', $synced, $existing, $skipped, $errors, 'work schedule(s)', $syncedFrom, $skippedIndexes);
+        return $this->respondReceive('work_schedules', $synced, $existing, $skipped, $errors, 'work schedule(s)', $syncedFrom, $skippedIndexes, $request->boolean('is_final_chunk', true));
     }
 
     public function receiveAttendances(Request $request)
@@ -547,7 +548,7 @@ class SyncController extends Controller
             }
         }
 
-        return $this->respondReceive('attendances', $synced, $existing, $skipped, $errors, 'attendance record(s)', $syncedFrom, $skippedIndexes);
+        return $this->respondReceive('attendances', $synced, $existing, $skipped, $errors, 'attendance record(s)', $syncedFrom, $skippedIndexes, $request->boolean('is_final_chunk', true));
     }
 
     // ── SYNC LOGS ────────────────────────────────────────────────────────────
@@ -565,7 +566,7 @@ class SyncController extends Controller
 
     // ── HELPERS ──────────────────────────────────────────────────────────────
 
-    private function respondReceive(string $module, int $synced, int $existing, int $skipped, array $errors, string $label, ?string $syncedFrom = null, array $skippedIndexes = []): JsonResponse
+    private function respondReceive(string $module, int $synced, int $existing, int $skipped, array $errors, string $label, ?string $syncedFrom = null, array $skippedIndexes = [], bool $isFinal = true): JsonResponse
     {
         $status = 'success';
         if (!empty($errors)) {
@@ -574,12 +575,11 @@ class SyncController extends Controller
 
         $message = "{$synced} {$label} synced, {$existing} already exist, {$skipped} skipped.";
 
-        $this->recordLog($module, 'receive', $status, [
-            'total'    => $synced + $existing + $skipped,
+        $this->recordAggregatedLog($module, 'receive', $syncedFrom, $isFinal, [
             'synced'   => $synced,
             'existing' => $existing,
             'skipped'  => $skipped,
-        ], $errors, $message, $syncedFrom);
+        ], $errors, $label);
 
         return response()->json([
             'success'         => $status !== 'failed',
@@ -606,6 +606,45 @@ class SyncController extends Controller
             'errors'         => $errors,
             'message'        => $message,
         ]);
+    }
+
+    /**
+     * The sender chunks large payloads into several requests, each flagged
+     * with is_final_chunk. Rather than writing a sync_logs row per chunk,
+     * this accumulates counts/errors in cache (keyed per module+source) and
+     * only writes the row once the final chunk arrives, so one logical sync
+     * run produces exactly one log entry with the full error/detail list.
+     */
+    private function recordAggregatedLog(string $module, string $direction, ?string $syncedFrom, bool $isFinal, array $counts, array $errors, string $label): void
+    {
+        $key      = "sync_progress:{$direction}:{$module}:" . ($syncedFrom ?? 'default');
+        $progress = Cache::get($key, ['synced' => 0, 'existing' => 0, 'skipped' => 0, 'errors' => []]);
+
+        $progress['synced']   += $counts['synced'] ?? 0;
+        $progress['existing'] += $counts['existing'] ?? 0;
+        $progress['skipped']  += $counts['skipped'] ?? 0;
+        $progress['errors']    = array_merge($progress['errors'], $errors);
+
+        if (!$isFinal) {
+            Cache::put($key, $progress, now()->addHour());
+            return;
+        }
+
+        Cache::forget($key);
+
+        $status = 'success';
+        if (!empty($progress['errors'])) {
+            $status = ($progress['synced'] > 0 || $progress['existing'] > 0) ? 'partial' : 'failed';
+        }
+
+        $message = "{$progress['synced']} {$label} synced, {$progress['existing']} already exist, {$progress['skipped']} skipped.";
+
+        $this->recordLog($module, $direction, $status, [
+            'total'    => $progress['synced'] + $progress['existing'] + $progress['skipped'],
+            'synced'   => $progress['synced'],
+            'existing' => $progress['existing'],
+            'skipped'  => $progress['skipped'],
+        ], $progress['errors'], $message, $syncedFrom);
     }
 
     /**
