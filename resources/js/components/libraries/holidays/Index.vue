@@ -67,8 +67,8 @@ const reloadHolidays = async () => {
     holiday.value = {};
 };
 
-watch(() => query.search, () => {
-    query.page = 1;
+watch(() => query.value.search, () => {
+    query.value.page = 1;
     getHolidays();
 });
 </script>
@@ -109,7 +109,6 @@ watch(() => query.search, () => {
             <v-data-table
                 :headers="headers"
                 :items="holidays"
-                :search="query.search"
                 class="lib-table"
                 :loading="is_loading"
                 loading-text="Loading holidays..."
@@ -189,15 +188,15 @@ watch(() => query.search, () => {
                     <strong>{{ pagination.from || 0 }}</strong>–<strong>{{ pagination.to || 0 }}</strong>
                     of <strong>{{ pagination.total }}</strong> holidays
                 </span>
-                <v-pagination
-                    v-model="query.page"
-                    :length="pagination.last || 1"
-                    :total-visible="5"
-                    circle
-                    @update:model-value="getHolidays"
-                    class="lib-pagination__control"
-                    active-color="#1fbfb8"
-                />
+                <div class="lib-pager">
+                    <button class="lib-pager__btn" :disabled="query.page <= 1" @click="query.page--; getHolidays()">
+                        <v-icon icon="mdi-chevron-left" size="18" />
+                    </button>
+                    <span class="lib-pager__current">{{ query.page }}</span>
+                    <button class="lib-pager__btn" :disabled="query.page >= (pagination.last_page || 1)" @click="query.page++; getHolidays()">
+                        <v-icon icon="mdi-chevron-right" size="18" />
+                    </button>
+                </div>
             </div>
         </div>
     </div>

@@ -17,9 +17,8 @@ export default function usePostNumbers() {
     const getPostNumbers = async (params = {}) => {
         is_loading.value = true;
 
-        let query_str = { ...query.value, ...params };
         await axios
-            .get('/api/post-numbers?page=' + query.value.page, query_str)
+            .get('/api/post-numbers', { params: { ...query.value, ...params } })
             .then((response) => {
                 postNumbers.value = response.data.data;
                 pagination.value = response.data.meta;

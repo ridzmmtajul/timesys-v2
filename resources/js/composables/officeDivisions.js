@@ -18,9 +18,8 @@ export default function useOfficeDivisions() {
     const getDivisions = async (params = {}) => {
         is_loading.value = true;
 
-        let query_str = { ...query.value, ...params };
         await axios
-            .get('/api/office-divisions?page=' + query.value.page, query_str)
+            .get('/api/office-divisions', { params: { ...query.value, ...params } })
             .then((response) => {
                 divisions.value = response.data.data;
                 pagination.value = response.data.meta;

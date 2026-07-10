@@ -42,6 +42,7 @@ const librariesItems = [
   { path: '/libraries/post-numbers', label: 'Post Number', icon: 'mdi mdi-pound' },
   { path: '/libraries/schedule-types', label: 'Schedule Type', icon: 'mdi mdi-calendar-clock' },
   { path: '/libraries/roles', label: 'Role', icon: 'mdi mdi-account-tag' },
+  { path: '/libraries/biometric-locations', label: 'Biometric Location', icon: 'mdi mdi-map-marker-radius-outline' },
 ];
 
 const settingsItems = [
@@ -86,7 +87,7 @@ function toggleSettings() {
       <img :src="logoUrl" alt="Logo" class="brand-logo" />
       <div>
         <span>TimeSync</span>
-        <small>Bio & Attendance System</small>
+        <small>Bio & Attendance Monitoring</small>
       </div>
     </div>
 

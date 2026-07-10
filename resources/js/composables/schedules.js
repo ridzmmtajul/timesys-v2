@@ -18,9 +18,8 @@ export default function useSchedules() {
     const getSchedules = async (params = {}) => {
         is_loading.value = true;
 
-        let query_str = { ...query.value, ...params };
         await axios
-            .get('/api/schedules?page=' + query.value.page, query_str)
+            .get('/api/schedules', { params: { ...query.value, ...params } })
             .then((response) => {
                 schedules.value = response.data.data;
                 pagination.value = response.data.meta;

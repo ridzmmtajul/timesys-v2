@@ -17,9 +17,8 @@ export default function useRoles() {
     const getRoles = async (params = {}) => {
         is_loading.value = true;
 
-        let query_str = { ...query.value, ...params };
         await axios
-            .get('/api/roles?page=' + query.value.page, query_str)
+            .get('/api/roles', { params: { ...query.value, ...params } })
             .then((response) => {
                 roles.value = response.data.data;
                 pagination.value = response.data.meta;

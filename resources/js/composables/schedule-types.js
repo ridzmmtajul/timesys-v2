@@ -17,9 +17,8 @@ export default function useScheduleTypes() {
     const getScheduleTypes = async (params = {}) => {
         is_loading.value = true;
 
-        let query_str = { ...query.value, ...params };
         await axios
-            .get('/api/schedule-types?page=' + query.value.page, query_str)
+            .get('/api/schedule-types', { params: { ...query.value, ...params } })
             .then((response) => {
                 scheduleTypes.value = response.data.data;
                 pagination.value = response.data.meta;

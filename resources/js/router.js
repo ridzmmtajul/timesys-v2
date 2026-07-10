@@ -13,6 +13,7 @@ import PositionList from './components/libraries/positions/Index.vue';
 import PostNumberList from './components/libraries/post-numbers/Index.vue';
 import ScheduleTypeList from './components/libraries/schedule-types/Index.vue';
 import ScheduleList from './components/libraries/schedules/Index.vue';
+import BiometricLocationList from './components/libraries/biometric-locations/Index.vue';
 import WorkScheduleList from './components/work-schedules/Index.vue';
 import WorkTimeRuleList from './components/settings/work-time-rules/Index.vue';
 import UserList from './components/settings/users/Index.vue';
@@ -36,6 +37,7 @@ const routes = [
   { path: '/libraries/post-numbers', component: PostNumberList, meta: { requiresAuth: true } },
   { path: '/libraries/schedule-types', component: ScheduleTypeList, meta: { requiresAuth: true } },
   { path: '/libraries/schedules', component: ScheduleList, meta: { requiresAuth: true } },
+  { path: '/libraries/biometric-locations', component: BiometricLocationList, meta: { requiresAuth: true } },
   { path: '/work-schedules', component: WorkScheduleList, meta: { requiresAuth: true } },
   { path: '/settings/work-time-rules', component: WorkTimeRuleList, meta: { requiresAuth: true } },
   { path: '/settings/accounts', component: UserList, meta: { requiresAuth: true } },

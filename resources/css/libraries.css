@@ -300,6 +300,53 @@
     font-weight: 700;
 }
 
+.lib-pager {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(108, 143, 214, 0.15);
+}
+
+.lib-pager__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: #8aa0d7;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.lib-pager__btn:hover:not(:disabled) {
+    background: rgba(31, 191, 184, 0.14);
+    color: #1fbfb8;
+}
+
+.lib-pager__btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.lib-pager__current {
+    min-width: 34px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: #1fbfb8;
+    color: #06201e;
+    font-weight: 700;
+    font-size: 14px;
+}
+
 /* ══════════════════════════════════════════════ */
 /* ━━━ Modal (Form / Create) ━━━ */
 /* ══════════════════════════════════════════════ */
@@ -721,6 +768,12 @@ html.light-mode .lib-empty__sub { color: #64748b; }
 
 html.light-mode .lib-pagination { border-color: #f1f5f9; }
 html.light-mode .lib-pagination__info { color: #64748b; }
+
+html.light-mode .lib-pager {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+html.light-mode .lib-pager__btn { color: #64748b; }
 
 html.light-mode .lib-modal {
     background: #ffffff;

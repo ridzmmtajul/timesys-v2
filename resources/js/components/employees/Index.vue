@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 import EmployeeForm from './Form/Create.vue';
 import ScheduleCalendar from './ScheduleCalendar.vue';
@@ -21,6 +21,8 @@ const showCalendar   = ref(false);
 const calendarEmployee = ref(null);
 const syncing        = ref(false);
 const showExport     = ref(false);
+const openMenuEmployee = ref(null);
+const menuPos        = ref({ top: 0, left: 0 });
 
 let searchTimeout = null;
 
@@ -33,6 +35,35 @@ function fullName(emp) {
 
 function initials(emp) {
   return `${(emp.first_name || ' ').charAt(0)}${(emp.last_name || ' ').charAt(0)}`.toUpperCase();
+}
+
+function officeNames(emp) {
+  const offices = emp.employee_offices || [];
+  const names = offices.map(eo => eo.synced_from).filter(Boolean);
+  return names.length ? names.join(', ') : '—';
+}
+
+function toggleActionMenu(emp, event) {
+  event.stopPropagation();
+  if (openMenuEmployee.value?.id === emp.id) {
+    closeActionMenu();
+    return;
+  }
+  const rect = event.currentTarget.getBoundingClientRect();
+  menuPos.value = {
+    top:  rect.bottom + window.scrollY + 6,
+    left: rect.right + window.scrollX - 200,
+  };
+  openMenuEmployee.value = emp;
+}
+
+function closeActionMenu() {
+  openMenuEmployee.value = null;
+}
+
+function runMenuAction(fn) {
+  closeActionMenu();
+  fn();
 }
 
 function onSearchInput() {
@@ -225,6 +256,13 @@ async function syncToServer() {
 onMounted(() => {
   fetchEmployees();
   fetchOptions();
+  window.addEventListener('click', closeActionMenu);
+  window.addEventListener('scroll', closeActionMenu, true);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('click', closeActionMenu);
+  window.removeEventListener('scroll', closeActionMenu, true);
 });
 </script>
 <template>
@@ -284,6 +322,7 @@ onMounted(() => {
               <th>Employee No</th>
               <th>Name</th>
               <th>Office</th>
+              <th>Assigned Offices</th>
               <th>Office Division</th>
               <th>Employment Type</th>
               <th>Status</th>
@@ -300,6 +339,9 @@ onMounted(() => {
                 </div>
               </td>
               <td>{{ emp.office?.name || '—' }}</td>
+              <td>
+                <span class="office-chips-text" :title="officeNames(emp)">{{ officeNames(emp) }}</span>
+              </td>
               <td>{{ emp.office_division?.name || '—' }}</td>
               <td>{{ emp.employment_type?.name || '—' }}</td>
               <td>
@@ -309,34 +351,17 @@ onMounted(() => {
                 </span>
               </td>
               <td>
-                <div class="row-actions">
-                  <button class="action-btn edit-btn" title="Edit" @click="openEditModal(emp)">
-                    <i class="fas fa-pen"></i>
-                  </button>
-                  <button class="action-btn calendar-btn" title="View Work Schedule" @click="openScheduleCalendar(emp)">
-                    <i class="fas fa-calendar-alt"></i>
-                  </button>
-                  <button
-                    v-if="emp.is_active"
-                    class="action-btn deactivate-btn"
-                    title="Deactivate"
-                    @click="toggleEmployeeStatus(emp)"
-                  >
-                    <i class="fas fa-user-slash"></i>
-                  </button>
-                  <button
-                    v-else
-                    class="action-btn activate-btn"
-                    title="Activate"
-                    @click="toggleEmployeeStatus(emp)"
-                  >
-                    <i class="fas fa-user-check"></i>
-                  </button>
-                </div>
+                <button
+                  class="action-trigger"
+                  title="Actions"
+                  @click="toggleActionMenu(emp, $event)"
+                >
+                  <i class="fas fa-ellipsis-vertical"></i>
+                </button>
               </td>
             </tr>
             <tr v-if="!employees.length">
-              <td colspan="9" class="empty-table">
+              <td colspan="8" class="empty-table">
                 <i class="fas fa-users"></i>
                 <p>No employees found</p>
                 <span v-if="search">Try a different search term</span>
@@ -397,6 +422,40 @@ onMounted(() => {
       :offices="options.offices"
       @close="closeExportModal"
     />
+
+    <Teleport to="body">
+      <div
+        v-if="openMenuEmployee"
+        class="action-dropdown"
+        :style="{ top: menuPos.top + 'px', left: menuPos.left + 'px' }"
+        @click.stop
+      >
+        <button class="action-dropdown-item" @click="runMenuAction(() => openEditModal(openMenuEmployee))">
+          <i class="fas fa-pen"></i>
+          Edit
+        </button>
+        <button class="action-dropdown-item" @click="runMenuAction(() => openScheduleCalendar(openMenuEmployee))">
+          <i class="fas fa-calendar-alt"></i>
+          View Work Schedule
+        </button>
+        <button
+          v-if="openMenuEmployee.is_active"
+          class="action-dropdown-item action-dropdown-item--danger"
+          @click="runMenuAction(() => toggleEmployeeStatus(openMenuEmployee))"
+        >
+          <i class="fas fa-user-slash"></i>
+          Deactivate
+        </button>
+        <button
+          v-else
+          class="action-dropdown-item action-dropdown-item--confirm"
+          @click="runMenuAction(() => toggleEmployeeStatus(openMenuEmployee))"
+        >
+          <i class="fas fa-user-check"></i>
+          Activate
+        </button>
+      </div>
+    </Teleport>
   </section>
 </template>
 <style scoped>
@@ -695,58 +754,92 @@ onMounted(() => {
   color: #bcbfe5;
 }
 
-/* ── Row actions ── */
-.row-actions {
-  display: flex;
-  gap: 6px;
+/* ── Assigned offices ── */
+.office-chips-text {
+  display: inline-block;
+  max-width: 260px;
+  white-space: normal;
+  word-break: break-word;
+  color: #c8d6f8;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
-.action-btn {
-  width: 30px;
-  height: 30px;
+/* ── Row actions ── */
+.action-trigger {
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
-  border: 0;
+  border: 1px solid rgba(121, 146, 207, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: #9bb0da;
   cursor: pointer;
   display: grid;
   place-items: center;
-  font-size: 12px;
-  transition: background 0.15s;
+  font-size: 14px;
+  transition: background 0.15s, color 0.15s;
 }
 
-.edit-btn {
-  background: rgba(63, 109, 199, 0.2);
-  color: #7db3f8;
-}
-
-.edit-btn:hover {
-  background: rgba(63, 109, 199, 0.38);
-}
-
-.deactivate-btn {
-  background: rgba(220, 60, 60, 0.16);
-  color: #f08080;
-}
-
-.deactivate-btn:hover {
-  background: rgba(220, 60, 60, 0.3);
-}
-
-.activate-btn {
-  background: rgba(31, 191, 184, 0.16);
+.action-trigger:hover {
+  background: rgba(31, 191, 184, 0.18);
   color: #75e7d7;
 }
 
-.activate-btn:hover {
-  background: rgba(31, 191, 184, 0.3);
+.action-dropdown {
+  position: absolute;
+  z-index: 1000;
+  min-width: 200px;
+  padding: 6px;
+  border-radius: 12px;
+  background: #131f42;
+  border: 1px solid rgba(121, 146, 207, 0.22);
+  box-shadow: 0 20px 44px rgba(2, 7, 20, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.calendar-btn {
-  background: rgba(160, 90, 220, 0.16);
-  color: #c589f5;
+.action-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #edf5ff;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
 }
 
-.calendar-btn:hover {
-  background: rgba(160, 90, 220, 0.3);
+.action-dropdown-item i {
+  width: 16px;
+  text-align: center;
+  color: #7db3f8;
+}
+
+.action-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.action-dropdown-item--danger i {
+  color: #f08080;
+}
+
+.action-dropdown-item--danger:hover {
+  background: rgba(220, 60, 60, 0.16);
+}
+
+.action-dropdown-item--confirm i {
+  color: #75e7d7;
+}
+
+.action-dropdown-item--confirm:hover {
+  background: rgba(31, 191, 184, 0.16);
 }
 
 .empty-table {

@@ -17,9 +17,8 @@ export default function useTitles() {
     const getTitles = async (params = {}) => {
         is_loading.value = true;
 
-        let query_str = { ...query.value, ...params };
         await axios
-            .get('/api/titles?page=' + query.value.page, query_str)
+            .get('/api/titles', { params: { ...query.value, ...params } })
             .then((response) => {
                 titles.value = response.data.data;
                 pagination.value = response.data.meta;

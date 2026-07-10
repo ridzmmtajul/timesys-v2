@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\BiometricController;
+use App\Http\Controllers\BiometricLocationController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\OfficeController;
@@ -126,6 +127,11 @@ Route::middleware(['auth:sanctum', 'extend.token'])->group(function () {
     Route::post('/titles', [TitleController::class, 'store']);
     Route::put('/titles/{id}', [TitleController::class, 'update']);
     Route::delete('/titles/{id}', [TitleController::class, 'destroy']);
+
+    Route::get('/biometric-locations', [BiometricLocationController::class, 'index']);
+    Route::post('/biometric-locations', [BiometricLocationController::class, 'store']);
+    Route::put('/biometric-locations/{id}', [BiometricLocationController::class, 'update']);
+    Route::delete('/biometric-locations/{id}', [BiometricLocationController::class, 'destroy']);
 
     Route::get('/reports/employee-list', [ReportController::class, 'employeeList']);
     Route::get('/reports/logbook', [ReportController::class, 'logbook']);

@@ -17,9 +17,8 @@ export default function useEmploymentTypes() {
     const getEmploymentTypes = async (params = {}) => {
         is_loading.value = true;
 
-        let query_str = { ...query.value, ...params };
         await axios
-            .get('/api/employment-types?page=' + query.value.page, query_str)
+            .get('/api/employment-types', { params: { ...query.value, ...params } })
             .then((response) => {
                 employmentTypes.value = response.data.data;
                 pagination.value = response.data.meta;

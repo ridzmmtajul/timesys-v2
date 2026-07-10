@@ -2,9 +2,9 @@ import { ref } from 'vue';
 import axios from 'axios';
 import ThemeSwal, { swalClass } from '../utils/swal.js';
 
-export default function usePositions() {
-    const position = ref(null);
-    const positions = ref([]);
+export default function useBiometricLocations() {
+    const biometricLocation = ref(null);
+    const biometricLocations = ref([]);
     const is_loading = ref(false);
     const is_success = ref(false);
     const errors = ref({});
@@ -14,29 +14,29 @@ export default function usePositions() {
         page: 1,
     });
 
-    const getPositions = async (params = {}) => {
+    const getBiometricLocations = async (params = {}) => {
         is_loading.value = true;
 
         await axios
-            .get('/api/positions', { params: { ...query.value, ...params } })
+            .get('/api/biometric-locations', { params: { ...query.value, ...params } })
             .then((response) => {
-                positions.value = response.data.data;
+                biometricLocations.value = response.data.data;
                 pagination.value = response.data.meta;
                 is_loading.value = false;
-            });
-    };
+            })
+    }
 
-    const storePosition = async (data) => {
+    const storeBiometricLocation = async (data) => {
         is_loading.value = true;
-        errors.value = '';
+        errors.value = "";
 
         try {
             await axios
-                .post('/api/positions', data)
+                .post(`/api/biometric-locations`, data)
                 .then((response) => {
                     ThemeSwal.fire({
-                        title: 'Success',
-                        icon: 'success',
+                        title: "Success",
+                        icon: "success",
                         text: response.data.message,
                     });
                     errors.value = {};
@@ -50,20 +50,20 @@ export default function usePositions() {
                 is_loading.value = false;
             }
         }
-    };
+    }
 
-    const updatePosition = async (data) => {
-        errors.value = '';
+    const updateBiometricLocation = async (data) => {
+        errors.value = "";
         is_loading.value = true;
-        position.value = data;
+        biometricLocation.value = data;
 
         try {
             await axios
-                .put(`/api/positions/${position.value.id}`, position.value)
+                .put(`/api/biometric-locations/${biometricLocation.value.id}`, biometricLocation.value)
                 .then((response) => {
                     ThemeSwal.fire({
-                        title: 'Success',
-                        icon: 'success',
+                        title: "Success",
+                        icon: "success",
                         text: response.data.message,
                     });
                     errors.value = {};
@@ -77,15 +77,15 @@ export default function usePositions() {
                 is_loading.value = false;
             }
         }
-    };
+    }
 
-    const destroyPosition = async (id) => {
+    const destroyBiometricLocation = async (id) => {
         ThemeSwal.fire({
-            title: 'Are you sure?',
+            title: "Are you sure?",
             text: "You won't be able to revert this!",
-            icon: 'warning',
+            icon: "warning",
             showCancelButton: true,
-            confirmButtonText: 'Yes, delete it!',
+            confirmButtonText: "Yes, delete it!",
             customClass: {
                 ...swalClass,
                 confirmButton: 'ts-swal-btn ts-swal-btn--danger',
@@ -93,37 +93,37 @@ export default function usePositions() {
         }).then((result) => {
             if (result.value) {
                 axios
-                    .delete(`/api/positions/${id}`)
+                    .delete(`/api/biometric-locations/${id}`)
                     .then((response) => {
-                        getPositions();
+                        getBiometricLocations();
                         ThemeSwal.fire({
-                            title: 'Deleted',
+                            title: "Deleted",
                             text: response.data.message,
-                            icon: 'success',
+                            icon: "success",
                         });
                     })
                     .catch(() => {
                         ThemeSwal.fire({
-                            icon: 'error',
-                            title: 'Oops...',
-                            text: 'Something went wrong!',
+                            icon: "error",
+                            title: "Oops...",
+                            text: "Something went wrong!",
                         });
                     });
             }
         });
-    };
+    }
 
     return {
-        position,
-        positions,
+        biometricLocation,
+        biometricLocations,
         is_loading,
         is_success,
         errors,
         pagination,
         query,
-        getPositions,
-        storePosition,
-        updatePosition,
-        destroyPosition,
-    };
+        storeBiometricLocation,
+        updateBiometricLocation,
+        destroyBiometricLocation,
+        getBiometricLocations,
+    }
 }

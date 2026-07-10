@@ -1,49 +1,46 @@
 <script setup>
 import { ref, onMounted, watch } from "vue";
-import OfficeForm from "./Form/Create.vue";
-import useOffices from "../../../composables/offices.js";
+import BiometricLocationForm from "./Form/Create.vue";
+import useBiometricLocations from "../../../composables/biometric-locations.js";
 
-const { offices, pagination, query, is_loading, getOffices, destroyOffice } = useOffices();
+const { biometricLocations, pagination, query, is_loading, getBiometricLocations, destroyBiometricLocation } = useBiometricLocations();
 
-const office = ref({});
+const biometricLocation = ref({});
 const show_form_modal = ref(false);
 
 const headers = [
-    { title: "Code", key: "code", sortable: true },
     { title: "Name", key: "name", sortable: true },
-    { title: "Description", key: "description", sortable: false },
-    { title: "Prefix", key: "prefix", sortable: true },
     { title: "Actions", key: "actions", sortable: false, align: "center" },
 ];
 
 const showModalForm = (val) => {
     show_form_modal.value = val;
     if (val == false) {
-        office.value = {};
+        biometricLocation.value = {};
     }
 };
 
 onMounted(() => {
-    getOffices();
+    getBiometricLocations();
 });
 
 const editItem = (value) => {
-    office.value = value;
+    biometricLocation.value = value;
     showModalForm(true);
 };
 
 const deleteItem = async (value) => {
-    await destroyOffice(value.id);
+    await destroyBiometricLocation(value.id);
 };
 
-const reloadOffices = async () => {
-    await getOffices();
-    office.value = {};
+const reloadBiometricLocations = async () => {
+    await getBiometricLocations();
+    biometricLocation.value = {};
 };
 
 watch(() => query.value.search, () => {
     query.value.page = 1;
-    getOffices();
+    getBiometricLocations();
 });
 </script>
 
@@ -53,16 +50,16 @@ watch(() => query.value.search, () => {
         <div class="lib-header">
             <div class="lib-header__left">
                 <div class="lib-header__icon">
-                    <v-icon icon="mdi-office-building" size="20" />
+                    <v-icon icon="mdi-map-marker-radius-outline" size="20" />
                 </div>
                 <div>
-                    <h5 class="lib-header__title">Office Management</h5>
-                    <p class="lib-header__subtitle">Manage offices and departments</p>
+                    <h5 class="lib-header__title">Biometric Location Management</h5>
+                    <p class="lib-header__subtitle">Manage biometric device locations</p>
                 </div>
             </div>
             <button class="lib-btn-new" @click="showModalForm(true)">
                 <v-icon icon="mdi-plus" size="16" />
-                New Office
+                New Location
             </button>
         </div>
 
@@ -74,7 +71,7 @@ watch(() => query.value.search, () => {
                 <input
                     v-model="query.search"
                     type="text"
-                    placeholder="Search offices..."
+                    placeholder="Search locations..."
                     class="lib-search__input"
                 />
             </div>
@@ -82,37 +79,21 @@ watch(() => query.value.search, () => {
             <!-- Data Table -->
             <v-data-table
                 :headers="headers"
-                :items="offices"
+                :items="biometricLocations"
                 class="lib-table"
                 :loading="is_loading"
-                loading-text="Loading offices..."
+                loading-text="Loading locations..."
                 hide-default-footer
                 item-value="id"
             >
-                <!-- Code Column -->
-                <template v-slot:item.code="{ item }">
-                    <div class="lib-table__cell">
-                        <div class="lib-table__avatar">
-                            <v-icon icon="mdi-office-building" size="14" />
-                        </div>
-                        <span class="lib-table__code">{{ item.code }}</span>
-                    </div>
-                </template>
-
                 <!-- Name Column -->
                 <template v-slot:item.name="{ item }">
-                    <span class="lib-table__name">{{ item.name }}</span>
-                </template>
-
-                <!-- Description Column -->
-                <template v-slot:item.description="{ item }">
-                    <span class="lib-table__muted">{{ item.description || '—' }}</span>
-                </template>
-
-                <!-- Prefix Column -->
-                <template v-slot:item.prefix="{ item }">
-                    <span v-if="item.prefix" class="lib-table__badge">{{ item.prefix }}</span>
-                    <span v-else class="lib-table__muted">—</span>
+                    <div class="lib-table__cell">
+                        <div class="lib-table__avatar">
+                            <v-icon icon="mdi-map-marker-radius-outline" size="14" />
+                        </div>
+                        <span class="lib-table__name">{{ item.name }}</span>
+                    </div>
                 </template>
 
                 <!-- Actions Column -->
@@ -133,13 +114,13 @@ watch(() => query.value.search, () => {
                 <template v-slot:no-data>
                     <div class="lib-empty">
                         <div class="lib-empty__icon">
-                            <v-icon icon="mdi-office-building-remove" size="32" />
+                            <v-icon icon="mdi-map-marker-off-outline" size="32" />
                         </div>
-                        <p class="lib-empty__title">No offices found</p>
-                        <p class="lib-empty__sub">Get started by creating your first office</p>
+                        <p class="lib-empty__title">No biometric locations found</p>
+                        <p class="lib-empty__sub">Get started by creating your first location</p>
                         <button class="lib-btn-new" style="margin-top:8px" @click="showModalForm(true)">
                             <v-icon icon="mdi-plus" size="15" />
-                            Create Office
+                            Create Location
                         </button>
                     </div>
                 </template>
@@ -150,14 +131,14 @@ watch(() => query.value.search, () => {
                 <span class="lib-pagination__info">
                     Showing
                     <strong>{{ pagination.from || 0 }}</strong>–<strong>{{ pagination.to || 0 }}</strong>
-                    of <strong>{{ pagination.total }}</strong> offices
+                    of <strong>{{ pagination.total }}</strong> locations
                 </span>
                 <div class="lib-pager">
-                    <button class="lib-pager__btn" :disabled="query.page <= 1" @click="query.page--; getOffices()">
+                    <button class="lib-pager__btn" :disabled="query.page <= 1" @click="query.page--; getBiometricLocations()">
                         <v-icon icon="mdi-chevron-left" size="18" />
                     </button>
                     <span class="lib-pager__current">{{ query.page }}</span>
-                    <button class="lib-pager__btn" :disabled="query.page >= (pagination.last_page || 1)" @click="query.page++; getOffices()">
+                    <button class="lib-pager__btn" :disabled="query.page >= (pagination.last_page || 1)" @click="query.page++; getBiometricLocations()">
                         <v-icon icon="mdi-chevron-right" size="18" />
                     </button>
                 </div>
@@ -165,11 +146,11 @@ watch(() => query.value.search, () => {
         </div>
     </div>
 
-    <!-- Office Form Modal -->
-    <office-form
+    <!-- Biometric Location Form Modal -->
+    <biometric-location-form
         :value="show_form_modal"
-        :office="office"
+        :biometric-location="biometricLocation"
         @input="showModalForm"
-        @reloadOffices="reloadOffices"
+        @reloadBiometricLocations="reloadBiometricLocations"
     />
 </template>

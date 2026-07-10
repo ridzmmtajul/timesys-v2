@@ -17,9 +17,8 @@ export default function useOffices() {
     const getOffices = async (params = {}) => {
         is_loading.value = true;
 
-        let query_str = { ...query.value, ...params };
         await axios
-            .get('/api/offices?page=' + query.value.page, query_str)
+            .get('/api/offices', { params: { ...query.value, ...params } })
             .then((response) => {
                 offices.value = response.data.data;
                 pagination.value = response.data.meta;

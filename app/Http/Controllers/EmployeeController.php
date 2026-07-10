@@ -18,7 +18,7 @@ class EmployeeController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Employee::with(['office', 'employmentType', 'position', 'officeDivision']);
+        $query = Employee::with(['office', 'employmentType', 'position', 'officeDivision', 'employeeOffices']);
 
         if ($request->filled('search')) {
             $search = $request->search;
