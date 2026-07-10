@@ -643,7 +643,10 @@ class SyncController extends Controller
             return null;
         }
 
-        return Employee::where('employee_no', $employeeNo)->value('id');
+        // withTrashed(): a soft-deleted employee on the source side is still
+        // a real employee here and should resolve normally — deletion there
+        // is reflected via employee_is_active, not by refusing to match.
+        return Employee::withTrashed()->where('employee_no', $employeeNo)->value('id');
     }
 
     /**
