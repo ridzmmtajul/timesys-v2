@@ -242,6 +242,7 @@ function handleSave() {
   display: flex;
   flex-direction: column;
   gap: 7px;
+  min-width: 0;
 }
 
 .form-group.full-width {
@@ -261,6 +262,8 @@ function handleSave() {
 
 .form-group input,
 .form-group select {
+  width: 100%;
+  min-width: 0;
   height: 42px;
   border-radius: 12px;
   border: 1px solid rgba(121, 146, 207, 0.18);

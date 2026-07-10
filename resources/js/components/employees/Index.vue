@@ -62,8 +62,8 @@ function closeActionMenu() {
 }
 
 function runMenuAction(fn) {
-  closeActionMenu();
   fn();
+  closeActionMenu();
 }
 
 function onSearchInput() {
@@ -139,6 +139,7 @@ async function saveEmployee(payload) {
   if (errors.value.length) return;
 
   saving.value = true;
+  const wasEditing = !!editingEmployee.value;
   try {
     if (editingEmployee.value) {
       await axios.put(`/api/employees/${editingEmployee.value.id}`, payload);
@@ -148,6 +149,13 @@ async function saveEmployee(payload) {
     showModal.value = false;
     editingEmployee.value = null;
     await Promise.all([fetchEmployees(), fetchOptions()]);
+    ThemeSwal.fire({
+      icon: 'success',
+      title: wasEditing ? 'Employee Updated' : 'Employee Created',
+      text: wasEditing
+        ? 'The employee record has been updated.'
+        : 'The employee has been added.',
+    });
   } catch (error) {
     const errData = error?.response?.data;
     const status  = error?.response?.status;
