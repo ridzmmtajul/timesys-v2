@@ -52,12 +52,17 @@ class AttendanceController extends Controller
             return response()->json(['status' => 'not_found', 'message' => "Employee {$validated['employee_no']} not found."], 404);
         }
 
-        $exists = Attendance::where('check_time', $validated['check_time'])
+        $existing = Attendance::where('check_time', $validated['check_time'])
             ->where('employee_id', $employeeId)
             ->where('post_no', $validated['post_no'] ?? null)
-            ->exists();
+            ->first();
 
-        if ($exists) {
+        if ($existing) {
+            if ($existing->void) {
+                $existing->update(['void' => false]);
+                return response()->json(['status' => 'restored', 'data' => $existing]);
+            }
+
             return response()->json(['status' => 'existing', 'message' => 'Attendance already exists.']);
         }
 
