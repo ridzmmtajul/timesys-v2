@@ -71,4 +71,28 @@ class AttendanceController extends Controller
 
         return response()->json(['status' => 'created', 'data' => $attendance], 201);
     }
+
+    public function invalidate(Request $request)
+    {
+        $validated = $request->validate([
+            'employee_no' => 'required|string',
+            'synced_from' => 'required|string',
+            'from_date' => 'required|date',
+            'to_date' => 'required|date|after_or_equal:from_date',
+        ]);
+
+        $employeeId = $this->resolveEmployeeIdByEnrollment($validated['employee_no'], $validated['synced_from']);
+
+        if (!$employeeId) {
+            return response()->json(['status' => 'not_found', 'message' => "Employee {$validated['employee_no']} not found."], 404);
+        }
+
+        $count = Attendance::where('employee_id', $employeeId)
+            ->where('synced_from', $validated['synced_from'])
+            ->whereDate('check_time', '>=', $validated['from_date'])
+            ->whereDate('check_time', '<=', $validated['to_date'])
+            ->update(['void' => true]);
+
+        return response()->json(['status' => 'ok', 'invalidated' => $count]);
+    }
 }

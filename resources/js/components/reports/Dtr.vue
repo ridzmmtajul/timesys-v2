@@ -857,7 +857,7 @@ const fmt = (t) => {
                                 <th>Serial Number</th>
                                 <th>Post No.</th>
                                 <th>Synced From</th>
-                                <!-- <th>Status</th> -->
+                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -871,10 +871,10 @@ const fmt = (t) => {
                                     <td>{{ log.serial_no }}</td>
                                     <td>{{ log.post_no ?? '—' }}</td>
                                     <td>{{ log.synced_from || '—' }}</td>
-                                    <!-- <td>
+                                    <td>
                                         <span v-if="!log.void" class="status-badge status-badge--posted">Posted</span>
-                                        <span v-else class="status-badge status-badge--void">Void</span>
-                                    </td> -->
+                                        <span v-else class="status-badge status-badge--void">Voided</span>
+                                    </td>
                                 </tr>
                                 <tr v-if="!checkinoutLogs.length">
                                     <td colspan="6" class="dtr-empty">No raw check-in/out records found for this range</td>

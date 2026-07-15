@@ -232,19 +232,21 @@ class DtrController extends Controller
                 $rec       = $viewByDate[$date] ?? null;
                 $dayOfWeek = Carbon::createFromDate($yearNum, $monthNum, $day)->dayOfWeek;
 
-                $dayType = null;
-                if (isset($holidayDays[$day])) {
-                    $dayType = 'HOLIDAY';
-                } elseif ($dayOfWeek === 0) {
-                    $dayType = 'SUNDAY';
-                } elseif ($dayOfWeek === 6) {
-                    $dayType = 'SATURDAY';
-                }
-
                 $amArrival   = $rec?->actual_timein_AM  ? Carbon::parse($rec->actual_timein_AM)->format('H:i')  : null;
                 $amDeparture = $rec?->actual_timeout_AM ? Carbon::parse($rec->actual_timeout_AM)->format('H:i') : null;
                 $pmArrival   = $rec?->actual_timein_PM  ? Carbon::parse($rec->actual_timein_PM)->format('H:i')  : null;
                 $pmDeparture = $rec?->actual_timeout_PM ? Carbon::parse($rec->actual_timeout_PM)->format('H:i') : null;
+
+                $dayType = null;
+                if (!$amArrival && !$amDeparture && !$pmArrival && !$pmDeparture) {
+                    if (isset($holidayDays[$day])) {
+                        $dayType = 'HOLIDAY';
+                    } elseif ($dayOfWeek === 0) {
+                        $dayType = 'SUNDAY';
+                    } elseif ($dayOfWeek === 6) {
+                        $dayType = 'SATURDAY';
+                    }
+                }
 
                 $undertimeMinutes       = (int) ($rec?->total_undertime_minutes ?? 0);
                 $totalUndertimeMinutes += $undertimeMinutes;
